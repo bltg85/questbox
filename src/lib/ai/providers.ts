@@ -53,8 +53,8 @@ async function generateWithOpenAI(
     throw new Error('OpenAI not configured');
   }
 
-  // Using o3 for best creative output, fallback to gpt-4o if needed
-  const model = 'o3';
+  // Model configurable via env var, defaults to gpt-4o
+  const model = process.env.OPENAI_MODEL || 'gpt-4o';
 
   const response = await openai.chat.completions.create({
     model,
@@ -80,8 +80,11 @@ async function generateWithAnthropic(
     throw new Error('Anthropic not configured');
   }
 
+  // Model configurable via env var
+  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model,
     max_tokens: 4096,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
@@ -91,7 +94,7 @@ async function generateWithAnthropic(
   return {
     content: textContent?.type === 'text' ? textContent.text : '',
     provider: 'anthropic',
-    model: 'claude-sonnet-4-20250514',
+    model,
   };
 }
 
@@ -103,8 +106,8 @@ async function generateWithGoogle(
     throw new Error('Google AI not configured');
   }
 
-  // Using Gemini 2.0 Flash for speed and quality
-  const modelName = 'gemini-2.0-flash';
+  // Model configurable via env var
+  const modelName = process.env.GOOGLE_AI_MODEL || 'gemini-1.5-pro';
   const model = google.getGenerativeModel({ model: modelName });
 
   const response = await model.generateContent({
