@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Select, Textarea } from '@/components/ui';
-import { Sparkles, Wand2, FileText, Award } from 'lucide-react';
+import { Sparkles, Wand2, FileText, Award, Users, ArrowRight } from 'lucide-react';
 
 type GeneratorType = 'treasure_hunt' | 'quiz' | 'diploma';
 
@@ -122,6 +123,29 @@ export default function AIToolsPage() {
   return (
     <div>
       <h1 className="mb-8 text-3xl font-bold text-gray-900">AI Tools</h1>
+
+      {/* Pipeline CTA */}
+      <Link href="/admin/ai-tools/pipeline">
+        <div className="mb-8 flex items-center justify-between rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-6 transition-all hover:border-indigo-400">
+          <div className="flex items-center gap-4">
+            <div className="rounded-xl bg-indigo-600 p-3">
+              <Users className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">AI Creative Pipeline</h2>
+              <p className="text-sm text-gray-600">
+                Multi-agent collaboration: 3 AI models generate, give feedback, iterate, and vote for the best result
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 text-indigo-600" />
+        </div>
+      </Link>
+
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-gray-700">Quick Generation (Single Model)</h2>
+        <p className="text-sm text-gray-500">For fast results with a single AI provider</p>
+      </div>
 
       {/* Generator Selection */}
       <div className="mb-8 flex gap-4">

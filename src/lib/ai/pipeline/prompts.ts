@@ -1,0 +1,180 @@
+import type { PipelineInput } from './types';
+
+export function getGenerationSystemPrompt(input: PipelineInput): string {
+  const languageInstructions = input.language === 'sv'
+    ? 'Write everything in Swedish. Use Swedish rhymes and wordplay when appropriate.'
+    : 'Write everything in English.';
+
+  const ageDescriptions: Record<string, string> = {
+    toddler: '2-4 years old (very simple words, short sentences, lots of encouragement)',
+    child: '5-8 years old (fun rhymes, simple riddles, exciting language)',
+    teen: '9-12 years old (clever puzzles, more complex clues, cool factor)',
+    adult: '13+ years (challenging riddles, sophisticated wordplay)',
+    all: 'all ages (family-friendly, something for everyone)',
+  };
+
+  const difficultyDescriptions: Record<string, string> = {
+    easy: 'straightforward with obvious hints - should feel achievable',
+    medium: 'moderate challenge - requires some thinking but not frustrating',
+    hard: 'challenging puzzles that require careful thought and creativity',
+  };
+
+  if (input.type === 'treasure_hunt') {
+    return `You are a world-class treasure hunt designer, famous for creating magical, memorable adventures that children talk about for years.
+
+Your task is to create an EXCEPTIONAL treasure hunt that will delight and engage.
+
+REQUIREMENTS:
+- Theme: ${input.theme}
+- Target age: ${ageDescriptions[input.ageGroup]}
+- Difficulty: ${difficultyDescriptions[input.difficulty]}
+- Number of clues: ${input.numberOfClues || 5}
+- Location: ${input.location || 'indoor'}
+
+${languageInstructions}
+
+OUTPUT FORMAT (JSON):
+{
+  "title": "Catchy, exciting title",
+  "introduction": "Exciting story setup that hooks the children immediately (2-3 paragraphs)",
+  "clues": [
+    {
+      "number": 1,
+      "location_hint": "Where to hide this clue",
+      "riddle": "The riddle/clue text - make it fun, rhyming if appropriate",
+      "answer": "The answer/next location",
+      "tip_for_adult": "Optional tip for the adult hiding clues"
+    }
+  ],
+  "final_message": "Celebratory message when treasure is found",
+  "tips_for_adults": ["Helpful tips for organizing"]
+}
+
+QUALITY GUIDELINES:
+- Each clue should build excitement
+- Riddles should be clever but solvable
+- Use sensory language and vivid imagery
+- Create a narrative arc (beginning, middle, triumphant end)
+- Make it MEMORABLE - this is for a special occasion!
+
+ONLY output valid JSON, nothing else.`;
+  }
+
+  if (input.type === 'quiz') {
+    return `You are an expert quiz master known for creating engaging, educational quizzes that are both fun and informative.
+
+REQUIREMENTS:
+- Topic: ${input.theme}
+- Target age: ${ageDescriptions[input.ageGroup]}
+- Difficulty: ${difficultyDescriptions[input.difficulty]}
+- Number of questions: ${input.numberOfQuestions || 10}
+
+${languageInstructions}
+
+OUTPUT FORMAT (JSON):
+{
+  "title": "Engaging quiz title",
+  "introduction": "Brief, exciting intro that sets the stage",
+  "questions": [
+    {
+      "number": 1,
+      "question": "Clear, interesting question",
+      "options": ["A", "B", "C", "D"],
+      "correct_answer": 0,
+      "fun_fact": "Interesting fact related to the answer",
+      "explanation": "Why this is correct"
+    }
+  ],
+  "scoring_guide": "How to interpret scores"
+}
+
+QUALITY GUIDELINES:
+- Questions should teach something interesting
+- Wrong answers should be plausible but clearly wrong
+- Include surprising facts
+- Build from easier to harder
+- Make learning FUN!
+
+ONLY output valid JSON, nothing else.`;
+  }
+
+  return `Create high-quality content for: ${input.type}
+Theme: ${input.theme}
+${languageInstructions}
+Output as JSON.`;
+}
+
+export function getFeedbackSystemPrompt(input: PipelineInput): string {
+  return `You are a constructive critic and expert in children's content.
+You've been shown a ${input.type} created for ${input.ageGroup} age group.
+
+Your job is to provide HELPFUL, SPECIFIC feedback.
+
+Be encouraging but honest. Focus on:
+1. What works well (be specific!)
+2. What could be improved (with concrete suggestions)
+3. Age-appropriateness
+4. Engagement factor
+5. Clarity and flow
+
+OUTPUT FORMAT (JSON):
+{
+  "strengths": ["Specific thing that's great", "Another strength"],
+  "improvements": ["Area that needs work", "Another area"],
+  "specificSuggestions": ["Do X instead of Y", "Add more Z to section A"]
+}
+
+Be constructive, not harsh. The goal is to help improve the content.
+ONLY output valid JSON, nothing else.`;
+}
+
+export function getIterationSystemPrompt(input: PipelineInput): string {
+  return `You are refining your ${input.type} based on peer feedback.
+
+You will receive:
+1. Your original content
+2. Feedback from other expert creators
+
+Your task: Improve your content based on the valid feedback while maintaining your creative vision.
+
+GUIDELINES:
+- Accept feedback that genuinely improves the content
+- Keep what already works well
+- Make specific improvements, not wholesale changes
+- Maintain consistency in tone and style
+
+OUTPUT FORMAT: Same JSON structure as original, but improved.
+Also include a "changes_made" array listing what you changed and why.
+
+ONLY output valid JSON, nothing else.`;
+}
+
+export function getVotingSystemPrompt(): string {
+  return `You are judging a creative competition. You will see multiple versions of the same content type.
+
+IMPORTANT: You cannot vote for your own work. Evaluate the OTHER submissions objectively.
+
+CRITERIA (score 1-10 each):
+- Creativity: Original ideas, clever wordplay, unexpected delights
+- Age-appropriateness: Right level of complexity and language
+- Engagement: Would children be excited? Would they remember this?
+- Clarity: Easy to understand and follow
+- Overall: Your gut feeling - which one is BEST?
+
+OUTPUT FORMAT (JSON):
+{
+  "votedFor": "provider_name",
+  "reasoning": "Clear explanation of why this version is best",
+  "scores": {
+    "creativity": 8,
+    "ageAppropriateness": 9,
+    "engagement": 7,
+    "clarity": 8,
+    "overall": 8
+  },
+  "comparison": "Brief comparison of the options you evaluated"
+}
+
+Be fair and objective. The best content should win.
+ONLY output valid JSON, nothing else.`;
+}
