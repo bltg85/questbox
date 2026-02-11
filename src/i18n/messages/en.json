@@ -1,0 +1,161 @@
+{
+  "common": {
+    "appName": "QuestBox",
+    "tagline": "Digital products for unforgettable moments",
+    "home": "Home",
+    "products": "Products",
+    "categories": "Categories",
+    "free": "Free",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Try again",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "all": "All",
+    "none": "None",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "download": "Download",
+    "downloadNow": "Download Now",
+    "freeDownload": "Free Download",
+    "viewDetails": "View Details",
+    "learnMore": "Learn More"
+  },
+  "navigation": {
+    "home": "Home",
+    "products": "Products",
+    "treasureHunts": "Treasure Hunts",
+    "quizzes": "Quizzes",
+    "diplomas": "Diplomas",
+    "partyGames": "Party Games",
+    "freeProducts": "Free Products",
+    "about": "About",
+    "contact": "Contact"
+  },
+  "hero": {
+    "title": "Create Unforgettable Moments",
+    "subtitle": "Ready-to-use treasure hunts, quizzes, and party games for every occasion",
+    "cta": "Browse Products",
+    "secondaryCta": "Free Downloads"
+  },
+  "products": {
+    "title": "Our Products",
+    "featured": "Featured Products",
+    "latest": "Latest Additions",
+    "popular": "Most Popular",
+    "free": "Free Products",
+    "noProducts": "No products found",
+    "showingResults": "Showing {count} products",
+    "filters": {
+      "category": "Category",
+      "type": "Product Type",
+      "ageGroup": "Age Group",
+      "difficulty": "Difficulty",
+      "price": "Price"
+    },
+    "types": {
+      "treasure_hunt": "Treasure Hunt",
+      "quiz": "Quiz",
+      "diploma": "Diploma",
+      "party_game": "Party Game",
+      "escape_game": "Escape Game"
+    },
+    "ageGroups": {
+      "toddler": "2-4 years",
+      "child": "5-8 years",
+      "teen": "9-12 years",
+      "adult": "13+ years",
+      "all": "All ages"
+    },
+    "difficulty": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    }
+  },
+  "productDetail": {
+    "description": "Description",
+    "details": "Details",
+    "included": "What's Included",
+    "howToUse": "How to Use",
+    "ageGroup": "Age Group",
+    "difficulty": "Difficulty",
+    "duration": "Duration",
+    "participants": "Participants",
+    "downloads": "Downloads",
+    "minutes": "minutes",
+    "person": "person",
+    "people": "people"
+  },
+  "download": {
+    "title": "Get Your Free Download",
+    "subtitle": "Enter your email to receive the download link",
+    "emailPlaceholder": "your@email.com",
+    "submitButton": "Send Download Link",
+    "success": "Check your email for the download link!",
+    "error": "Something went wrong. Please try again.",
+    "invalidToken": "This download link is invalid or has expired.",
+    "maxDownloads": "You have reached the maximum number of downloads.",
+    "emailSent": "Download link sent to your email!"
+  },
+  "newsletter": {
+    "title": "Stay Updated",
+    "subtitle": "Get new products and exclusive offers directly in your inbox",
+    "placeholder": "Enter your email",
+    "button": "Subscribe",
+    "success": "Thanks for subscribing!",
+    "error": "Could not subscribe. Please try again."
+  },
+  "footer": {
+    "tagline": "Digital products for unforgettable moments",
+    "products": "Products",
+    "company": "Company",
+    "support": "Support",
+    "legal": "Legal",
+    "about": "About Us",
+    "contact": "Contact",
+    "faq": "FAQ",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "cookies": "Cookie Policy",
+    "copyright": "© {year} QuestBox. All rights reserved."
+  },
+  "admin": {
+    "dashboard": "Dashboard",
+    "products": "Products",
+    "categories": "Categories",
+    "subscribers": "Subscribers",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "aiTools": "AI Tools",
+    "logout": "Logout",
+    "stats": {
+      "totalProducts": "Total Products",
+      "publishedProducts": "Published",
+      "totalDownloads": "Total Downloads",
+      "totalSubscribers": "Subscribers",
+      "downloadsToday": "Downloads Today",
+      "newSubscribersToday": "New Subscribers"
+    }
+  },
+  "auth": {
+    "login": "Log In",
+    "logout": "Log Out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "loginButton": "Log In",
+    "loginError": "Invalid email or password",
+    "adminOnly": "Admin access only"
+  }
+}

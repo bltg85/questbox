@@ -1,0 +1,161 @@
+{
+  "common": {
+    "appName": "QuestBox",
+    "tagline": "Digitala produkter för oförglömliga stunder",
+    "home": "Hem",
+    "products": "Produkter",
+    "categories": "Kategorier",
+    "free": "Gratis",
+    "loading": "Laddar...",
+    "error": "Ett fel uppstod",
+    "retry": "Försök igen",
+    "save": "Spara",
+    "cancel": "Avbryt",
+    "delete": "Ta bort",
+    "edit": "Redigera",
+    "create": "Skapa",
+    "search": "Sök",
+    "filter": "Filtrera",
+    "sort": "Sortera",
+    "all": "Alla",
+    "none": "Inga",
+    "yes": "Ja",
+    "no": "Nej",
+    "back": "Tillbaka",
+    "next": "Nästa",
+    "previous": "Föregående",
+    "submit": "Skicka",
+    "download": "Ladda ner",
+    "downloadNow": "Ladda ner nu",
+    "freeDownload": "Gratis nedladdning",
+    "viewDetails": "Visa detaljer",
+    "learnMore": "Läs mer"
+  },
+  "navigation": {
+    "home": "Hem",
+    "products": "Produkter",
+    "treasureHunts": "Skattjakter",
+    "quizzes": "Frågesport",
+    "diplomas": "Diplom",
+    "partyGames": "Festlekar",
+    "freeProducts": "Gratisprodukter",
+    "about": "Om oss",
+    "contact": "Kontakt"
+  },
+  "hero": {
+    "title": "Skapa Oförglömliga Stunder",
+    "subtitle": "Färdiga skattjakter, quiz och festlekar för alla tillfällen",
+    "cta": "Se produkter",
+    "secondaryCta": "Gratis nedladdningar"
+  },
+  "products": {
+    "title": "Våra Produkter",
+    "featured": "Utvalda Produkter",
+    "latest": "Senaste Tillskotten",
+    "popular": "Mest Populära",
+    "free": "Gratisprodukter",
+    "noProducts": "Inga produkter hittades",
+    "showingResults": "Visar {count} produkter",
+    "filters": {
+      "category": "Kategori",
+      "type": "Produkttyp",
+      "ageGroup": "Åldersgrupp",
+      "difficulty": "Svårighetsgrad",
+      "price": "Pris"
+    },
+    "types": {
+      "treasure_hunt": "Skattjakt",
+      "quiz": "Frågesport",
+      "diploma": "Diplom",
+      "party_game": "Festlek",
+      "escape_game": "Escape-spel"
+    },
+    "ageGroups": {
+      "toddler": "2-4 år",
+      "child": "5-8 år",
+      "teen": "9-12 år",
+      "adult": "13+ år",
+      "all": "Alla åldrar"
+    },
+    "difficulty": {
+      "easy": "Lätt",
+      "medium": "Medel",
+      "hard": "Svår"
+    }
+  },
+  "productDetail": {
+    "description": "Beskrivning",
+    "details": "Detaljer",
+    "included": "Det här ingår",
+    "howToUse": "Så använder du det",
+    "ageGroup": "Åldersgrupp",
+    "difficulty": "Svårighetsgrad",
+    "duration": "Längd",
+    "participants": "Deltagare",
+    "downloads": "Nedladdningar",
+    "minutes": "minuter",
+    "person": "person",
+    "people": "personer"
+  },
+  "download": {
+    "title": "Hämta din gratis nedladdning",
+    "subtitle": "Ange din e-post för att få nedladdningslänken",
+    "emailPlaceholder": "din@email.se",
+    "submitButton": "Skicka nedladdningslänk",
+    "success": "Kolla din e-post för nedladdningslänken!",
+    "error": "Något gick fel. Försök igen.",
+    "invalidToken": "Denna nedladdningslänk är ogiltig eller har gått ut.",
+    "maxDownloads": "Du har nått maximalt antal nedladdningar.",
+    "emailSent": "Nedladdningslänk skickad till din e-post!"
+  },
+  "newsletter": {
+    "title": "Håll dig uppdaterad",
+    "subtitle": "Få nya produkter och exklusiva erbjudanden direkt i din inkorg",
+    "placeholder": "Ange din e-post",
+    "button": "Prenumerera",
+    "success": "Tack för din prenumeration!",
+    "error": "Kunde inte prenumerera. Försök igen."
+  },
+  "footer": {
+    "tagline": "Digitala produkter för oförglömliga stunder",
+    "products": "Produkter",
+    "company": "Företag",
+    "support": "Support",
+    "legal": "Juridiskt",
+    "about": "Om oss",
+    "contact": "Kontakt",
+    "faq": "Vanliga frågor",
+    "terms": "Användarvillkor",
+    "privacy": "Integritetspolicy",
+    "cookies": "Cookiepolicy",
+    "copyright": "© {year} QuestBox. Alla rättigheter förbehållna."
+  },
+  "admin": {
+    "dashboard": "Översikt",
+    "products": "Produkter",
+    "categories": "Kategorier",
+    "subscribers": "Prenumeranter",
+    "analytics": "Statistik",
+    "settings": "Inställningar",
+    "aiTools": "AI-verktyg",
+    "logout": "Logga ut",
+    "stats": {
+      "totalProducts": "Totalt produkter",
+      "publishedProducts": "Publicerade",
+      "totalDownloads": "Totalt nedladdningar",
+      "totalSubscribers": "Prenumeranter",
+      "downloadsToday": "Nedladdningar idag",
+      "newSubscribersToday": "Nya prenumeranter"
+    }
+  },
+  "auth": {
+    "login": "Logga in",
+    "logout": "Logga ut",
+    "email": "E-post",
+    "password": "Lösenord",
+    "forgotPassword": "Glömt lösenord?",
+    "loginButton": "Logga in",
+    "loginError": "Felaktig e-post eller lösenord",
+    "adminOnly": "Endast för administratörer"
+  }
+}
