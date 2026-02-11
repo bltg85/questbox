@@ -53,8 +53,11 @@ async function generateWithOpenAI(
     throw new Error('OpenAI not configured');
   }
 
+  // Using o3 for best creative output, fallback to gpt-4o if needed
+  const model = 'o3';
+
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -65,7 +68,7 @@ async function generateWithOpenAI(
   return {
     content: response.choices[0]?.message?.content || '',
     provider: 'openai',
-    model: 'gpt-4o',
+    model,
   };
 }
 
@@ -100,7 +103,9 @@ async function generateWithGoogle(
     throw new Error('Google AI not configured');
   }
 
-  const model = google.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  // Using Gemini 2.0 Flash for speed and quality
+  const modelName = 'gemini-2.0-flash';
+  const model = google.getGenerativeModel({ model: modelName });
 
   const response = await model.generateContent({
     contents: [
@@ -114,7 +119,7 @@ async function generateWithGoogle(
   return {
     content: response.response.text(),
     provider: 'google',
-    model: 'gemini-1.5-pro',
+    model: modelName,
   };
 }
 

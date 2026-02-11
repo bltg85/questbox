@@ -147,9 +147,9 @@ export default function PipelinePage() {
 
   const getProviderName = (provider: string) => {
     switch (provider) {
-      case 'anthropic': return 'Claude';
-      case 'openai': return 'GPT-4';
-      case 'google': return 'Gemini';
+      case 'anthropic': return 'Claude Sonnet 4';
+      case 'openai': return 'OpenAI o3';
+      case 'google': return 'Gemini 2.0';
       default: return provider;
     }
   };
