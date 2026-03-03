@@ -53,8 +53,8 @@ async function generateWithOpenAI(
     throw new Error('OpenAI not configured');
   }
 
-  // Model configurable via env var, defaults to gpt-4.1
-  const model = process.env.OPENAI_MODEL || 'gpt-4.1';
+  // Model configurable via env var, defaults to gpt-5.2
+  const model = process.env.OPENAI_MODEL || 'gpt-5.2';
 
   const response = await openai.chat.completions.create({
     model,
