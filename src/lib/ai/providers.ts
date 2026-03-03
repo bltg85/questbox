@@ -107,7 +107,7 @@ async function generateWithGoogle(
   }
 
   // Model configurable via env var
-  const modelName = process.env.GOOGLE_AI_MODEL || 'gemini-1.5-pro';
+  const modelName = process.env.GOOGLE_AI_MODEL || 'gemini-2.0-flash';
   const model = google.getGenerativeModel({ model: modelName });
 
   const response = await model.generateContent({
