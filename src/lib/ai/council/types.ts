@@ -6,6 +6,7 @@ export interface CouncilInput {
   ageGroup: AgeGroup;
   difficulty: DifficultyLevel;
   language: Locale;
+  modelTier?: 'economy' | 'premium';
   additionalInstructions?: string;
   // Type-specific
   numberOfClues?: number;

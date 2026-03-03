@@ -9,6 +9,7 @@ const CouncilRequestSchema = z.object({
   ageGroup: z.enum(['toddler', 'child', 'teen', 'adult', 'all']),
   difficulty: z.enum(['easy', 'medium', 'hard']),
   language: z.enum(['en', 'sv']),
+  modelTier: z.enum(['economy', 'premium']).optional(),
   additionalInstructions: z.string().optional(),
   numberOfClues: z.number().optional(),
   numberOfQuestions: z.number().optional(),

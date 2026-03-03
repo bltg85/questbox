@@ -20,6 +20,7 @@ export interface AIGenerationRequest {
   systemPrompt: string;
   userPrompt: string;
   provider?: AIProvider;
+  modelTier?: 'economy' | 'premium';
 }
 
 export interface AIGenerationResponse {
@@ -32,14 +33,15 @@ export async function generateWithAI({
   systemPrompt,
   userPrompt,
   provider = 'openai',
+  modelTier = 'premium',
 }: AIGenerationRequest): Promise<AIGenerationResponse> {
   switch (provider) {
     case 'openai':
-      return generateWithOpenAI(systemPrompt, userPrompt);
+      return generateWithOpenAI(systemPrompt, userPrompt, modelTier);
     case 'anthropic':
-      return generateWithAnthropic(systemPrompt, userPrompt);
+      return generateWithAnthropic(systemPrompt, userPrompt, modelTier);
     case 'google':
-      return generateWithGoogle(systemPrompt, userPrompt);
+      return generateWithGoogle(systemPrompt, userPrompt, modelTier);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
@@ -47,14 +49,16 @@ export async function generateWithAI({
 
 async function generateWithOpenAI(
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  modelTier: 'economy' | 'premium' = 'premium'
 ): Promise<AIGenerationResponse> {
   if (!openai) {
     throw new Error('OpenAI not configured');
   }
 
-  // Model configurable via env var, defaults to gpt-5.2
-  const model = process.env.OPENAI_MODEL || 'gpt-5.2';
+  // Model configurable via env var, otherwise based on tier
+  const defaultModel = modelTier === 'economy' ? 'gpt-5-mini' : 'gpt-5.2';
+  const model = process.env.OPENAI_MODEL || defaultModel;
 
   const response = await openai.chat.completions.create({
     model,
@@ -74,14 +78,16 @@ async function generateWithOpenAI(
 
 async function generateWithAnthropic(
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  modelTier: 'economy' | 'premium' = 'premium'
 ): Promise<AIGenerationResponse> {
   if (!anthropic) {
     throw new Error('Anthropic not configured');
   }
 
-  // Model configurable via env var
-  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
+  // Model configurable via env var, otherwise based on tier
+  const defaultModel = modelTier === 'economy' ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
+  const model = process.env.ANTHROPIC_MODEL || defaultModel;
 
   const response = await anthropic.messages.create({
     model,
@@ -100,14 +106,16 @@ async function generateWithAnthropic(
 
 async function generateWithGoogle(
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  modelTier: 'economy' | 'premium' = 'premium'
 ): Promise<AIGenerationResponse> {
   if (!google) {
     throw new Error('Google AI not configured');
   }
 
-  // Model configurable via env var
-  const modelName = process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash';
+  // Model configurable via env var, otherwise based on tier
+  const defaultModel = modelTier === 'economy' ? 'gemini-2.5-flash' : 'gemini-2.5-pro';
+  const modelName = process.env.GOOGLE_AI_MODEL || defaultModel;
   const model = google.getGenerativeModel({ model: modelName });
 
   const response = await model.generateContent({

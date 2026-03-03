@@ -49,6 +49,7 @@ export async function runCouncil(
         systemPrompt: getGenerationSystemPrompt(input),
         userPrompt: generationPrompt,
         provider,
+        modelTier: input.modelTier,
       });
 
       const content = parseJSON(response.content);
@@ -82,6 +83,7 @@ export async function runCouncil(
           systemPrompt: getFeedbackSystemPrompt(input),
           userPrompt: `Review this ${input.type}:\n\n${JSON.stringify(target.content, null, 2)}`,
           provider: reviewer.provider,
+          modelTier: input.modelTier,
         });
 
         const feedback = parseJSON(response.content);
@@ -120,6 +122,7 @@ export async function runCouncil(
         systemPrompt: getIterationSystemPrompt(input),
         userPrompt: `Your original ${input.type}:\n${JSON.stringify(proposal.content, null, 2)}\n\nFeedback received:\n${feedbackSummary}\n\nPlease improve your content based on this feedback.`,
         provider: proposal.provider,
+        modelTier: input.modelTier,
       });
 
       const improved = parseJSON(response.content);
@@ -162,6 +165,7 @@ export async function runCouncil(
         systemPrompt: getVotingSystemPrompt(),
         userPrompt: `You are ${voter.provider}. Vote for the BEST version (not your own).\n\nOptions:\n${proposalsToJudge}`,
         provider: voter.provider,
+        modelTier: input.modelTier,
       });
 
       const voteData = parseJSON(response.content);

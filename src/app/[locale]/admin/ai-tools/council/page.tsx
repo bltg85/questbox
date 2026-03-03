@@ -72,6 +72,7 @@ export default function CouncilPage() {
   const [numberOfQuestions, setNumberOfQuestions] = useState(10);
   const [location, setLocation] = useState('indoor');
   const [additionalInstructions, setAdditionalInstructions] = useState('');
+  const [modelTier, setModelTier] = useState<'economy' | 'premium'>('economy');
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -107,6 +108,7 @@ export default function CouncilPage() {
           ageGroup,
           difficulty,
           language,
+          modelTier,
           numberOfClues: type === 'treasure_hunt' ? numberOfClues : undefined,
           numberOfQuestions: type === 'quiz' ? numberOfQuestions : undefined,
           location: type === 'treasure_hunt' ? location : undefined,
@@ -297,6 +299,41 @@ export default function CouncilPage() {
               onChange={(e) => setAdditionalInstructions(e.target.value)}
               rows={2}
             />
+
+            {/* Model Tier Toggle */}
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-700">Model Tier</p>
+              <div className="flex rounded-lg border border-gray-200 p-1">
+                <button
+                  type="button"
+                  onClick={() => setModelTier('economy')}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    modelTier === 'economy'
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Economy
+                  <span className="ml-1 text-xs opacity-75">
+                    {modelTier === 'economy' ? '(gpt-5-mini · haiku · flash)' : ''}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModelTier('premium')}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    modelTier === 'premium'
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Premium
+                  <span className="ml-1 text-xs opacity-75">
+                    {modelTier === 'premium' ? '(gpt-5.2 · sonnet · pro)' : ''}
+                  </span>
+                </button>
+              </div>
+            </div>
 
             {error && (
               <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
