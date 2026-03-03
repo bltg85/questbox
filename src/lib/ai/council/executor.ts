@@ -6,24 +6,24 @@ import {
   getVotingSystemPrompt,
 } from './prompts';
 import type {
-  PipelineInput,
+  CouncilInput,
   GeneratedProposal,
   FeedbackItem,
   IteratedProposal,
   Vote,
-  PipelineResult,
+  CouncilResult,
 } from './types';
 import type { AIProvider } from '@/types';
 
-export async function runPipeline(
-  input: PipelineInput,
+export async function runCouncil(
+  input: CouncilInput,
   onProgress?: (stage: string, progress: number, message: string) => void
-): Promise<PipelineResult> {
+): Promise<CouncilResult> {
   const startTime = Date.now();
   const providers = getAvailableProviders();
 
   if (providers.length < 2) {
-    throw new Error('At least 2 AI providers must be configured for the pipeline');
+    throw new Error('At least 2 AI providers must be configured for the council');
   }
 
   // Use up to 3 providers
@@ -31,7 +31,7 @@ export async function runPipeline(
 
   const report = (stage: string, progress: number, message: string) => {
     onProgress?.(stage, progress, message);
-    console.log(`[Pipeline] ${stage}: ${message} (${progress}%)`);
+    console.log(`[Council] ${stage}: ${message} (${progress}%)`);
   };
 
   // ============== ROUND 1: GENERATE ==============
@@ -63,7 +63,7 @@ export async function runPipeline(
   }
 
   if (proposals.length < 2) {
-    throw new Error('Not enough successful generations to continue pipeline');
+    throw new Error('Not enough successful generations to continue council');
   }
 
   // ============== ROUND 2: FEEDBACK ==============
@@ -225,7 +225,7 @@ export async function runPipeline(
   };
 }
 
-function buildGenerationPrompt(input: PipelineInput): string {
+function buildGenerationPrompt(input: CouncilInput): string {
   if (input.type === 'treasure_hunt') {
     return `Create an amazing treasure hunt with:
 - Theme: ${input.theme}

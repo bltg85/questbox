@@ -1,8 +1,8 @@
-export { runPipeline } from './executor';
+export { runCouncil } from './executor';
 export type {
-  PipelineInput,
-  PipelineResult,
-  PipelineStatus,
+  CouncilInput,
+  CouncilResult,
+  CouncilStatus,
   GeneratedProposal,
   IteratedProposal,
   FeedbackItem,

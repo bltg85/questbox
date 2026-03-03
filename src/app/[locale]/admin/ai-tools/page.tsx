@@ -124,15 +124,15 @@ export default function AIToolsPage() {
     <div>
       <h1 className="mb-8 text-3xl font-bold text-gray-900">AI Tools</h1>
 
-      {/* Pipeline CTA */}
-      <Link href="/admin/ai-tools/pipeline">
+      {/* Council CTA */}
+      <Link href="/admin/ai-tools/council">
         <div className="mb-8 flex items-center justify-between rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-6 transition-all hover:border-indigo-400">
           <div className="flex items-center gap-4">
             <div className="rounded-xl bg-indigo-600 p-3">
               <Users className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">AI Creative Pipeline</h2>
+              <h2 className="text-lg font-semibold text-gray-900">AI Council</h2>
               <p className="text-sm text-gray-600">
                 Multi-agent collaboration: 3 AI models generate, give feedback, iterate, and vote for the best result
               </p>

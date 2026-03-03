@@ -45,7 +45,7 @@ interface VoteView {
   };
 }
 
-interface PipelineResultView {
+interface CouncilResultView {
   winner: ProposalView;
   runnerUp: ProposalView | null;
   allProposals: ProposalView[];
@@ -54,11 +54,11 @@ interface PipelineResultView {
   totalTimeMs: number;
 }
 
-export default function PipelinePage() {
+export default function CouncilPage() {
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState<string>('');
   const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState<PipelineResultView | null>(null);
+  const [result, setResult] = useState<CouncilResultView | null>(null);
   const [error, setError] = useState('');
   const [selectedProposal, setSelectedProposal] = useState<string>('winner');
 
@@ -98,7 +98,7 @@ export default function PipelinePage() {
     }, 8000);
 
     try {
-      const res = await fetch('/api/ai/pipeline', {
+      const res = await fetch('/api/ai/council', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -120,7 +120,7 @@ export default function PipelinePage() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Pipeline failed');
+        throw new Error(data.error || 'Council failed');
       }
 
       setResult(data.data);
@@ -171,7 +171,7 @@ export default function PipelinePage() {
       case 'feedback': return 'Models are reviewing each other\'s work...';
       case 'iterating': return 'Each model is improving based on feedback...';
       case 'voting': return 'Models are voting for the best version...';
-      case 'complete': return 'Pipeline complete!';
+      case 'complete': return 'Council complete!';
       default: return 'Starting...';
     }
   };
@@ -192,7 +192,7 @@ export default function PipelinePage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">AI Creative Pipeline</h1>
+          <h1 className="text-3xl font-bold text-gray-900">AI Council</h1>
           <p className="text-gray-500">Multi-agent generation with feedback and voting</p>
         </div>
       </div>
@@ -315,7 +315,7 @@ export default function PipelinePage() {
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Run Creative Pipeline
+                  Run AI Council
                 </>
               )}
             </Button>
@@ -353,7 +353,7 @@ export default function PipelinePage() {
               <div className="flex h-64 items-center justify-center text-gray-400">
                 <div className="text-center">
                   <Sparkles className="mx-auto mb-4 h-12 w-12" />
-                  <p>Configure and run the pipeline to see results</p>
+                  <p>Configure and run the council to see results</p>
                 </div>
               </div>
             )}

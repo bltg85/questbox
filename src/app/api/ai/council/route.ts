@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { runPipeline } from '@/lib/ai/pipeline';
-import type { PipelineInput } from '@/lib/ai/pipeline';
+import { runCouncil } from '@/lib/ai/council';
+import type { CouncilInput } from '@/lib/ai/council';
 
-const PipelineRequestSchema = z.object({
+const CouncilRequestSchema = z.object({
   type: z.enum(['treasure_hunt', 'quiz', 'diploma', 'party_game', 'escape_game']),
   theme: z.string().min(1),
   ageGroup: z.enum(['toddler', 'child', 'teen', 'adult', 'all']),
@@ -18,12 +18,12 @@ const PipelineRequestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const input = PipelineRequestSchema.parse(body) as PipelineInput;
+    const input = CouncilRequestSchema.parse(body) as CouncilInput;
 
-    console.log('[Pipeline API] Starting pipeline with input:', input);
+    console.log('[Council API] Starting council with input:', input);
 
-    const result = await runPipeline(input, (stage, progress, message) => {
-      console.log(`[Pipeline API] ${stage} - ${progress}% - ${message}`);
+    const result = await runCouncil(input, (stage, progress, message) => {
+      console.log(`[Council API] ${stage} - ${progress}% - ${message}`);
     });
 
     return NextResponse.json({
@@ -51,11 +51,11 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[Pipeline API] Error:', error);
+    console.error('[Council API] Error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Pipeline failed'
+        error: error instanceof Error ? error.message : 'Council failed'
       },
       { status: 500 }
     );

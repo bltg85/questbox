@@ -1,6 +1,6 @@
-import type { PipelineInput } from './types';
+import type { CouncilInput } from './types';
 
-export function getGenerationSystemPrompt(input: PipelineInput): string {
+export function getGenerationSystemPrompt(input: CouncilInput): string {
   const languageInstructions = input.language === 'sv'
     ? 'Write everything in Swedish. Use Swedish rhymes and wordplay when appropriate.'
     : 'Write everything in English.';
@@ -104,7 +104,7 @@ ${languageInstructions}
 Output as JSON.`;
 }
 
-export function getFeedbackSystemPrompt(input: PipelineInput): string {
+export function getFeedbackSystemPrompt(input: CouncilInput): string {
   return `You are a constructive critic and expert in children's content.
 You've been shown a ${input.type} created for ${input.ageGroup} age group.
 
@@ -128,7 +128,7 @@ Be constructive, not harsh. The goal is to help improve the content.
 ONLY output valid JSON, nothing else.`;
 }
 
-export function getIterationSystemPrompt(input: PipelineInput): string {
+export function getIterationSystemPrompt(input: CouncilInput): string {
   return `You are refining your ${input.type} based on peer feedback.
 
 You will receive:

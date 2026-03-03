@@ -1,6 +1,6 @@
 import type { AIProvider, ProductType, AgeGroup, DifficultyLevel, Locale } from '@/types';
 
-export interface PipelineInput {
+export interface CouncilInput {
   type: ProductType;
   theme: string;
   ageGroup: AgeGroup;
@@ -46,7 +46,7 @@ export interface Vote {
   };
 }
 
-export interface PipelineResult {
+export interface CouncilResult {
   winner: IteratedProposal;
   runnerUp: IteratedProposal | null;
   allProposals: IteratedProposal[];
@@ -56,7 +56,7 @@ export interface PipelineResult {
   totalTimeMs: number;
 }
 
-export interface PipelineStatus {
+export interface CouncilStatus {
   stage: 'generating' | 'feedback' | 'iterating' | 'voting' | 'complete' | 'error';
   currentProvider?: AIProvider;
   progress: number; // 0-100
