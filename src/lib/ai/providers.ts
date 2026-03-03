@@ -53,8 +53,8 @@ async function generateWithOpenAI(
     throw new Error('OpenAI not configured');
   }
 
-  // Model configurable via env var, defaults to gpt-4o
-  const model = process.env.OPENAI_MODEL || 'gpt-4o';
+  // Model configurable via env var, defaults to gpt-4.1
+  const model = process.env.OPENAI_MODEL || 'gpt-4.1';
 
   const response = await openai.chat.completions.create({
     model,
@@ -81,7 +81,7 @@ async function generateWithAnthropic(
   }
 
   // Model configurable via env var
-  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 
   const response = await anthropic.messages.create({
     model,
@@ -107,7 +107,7 @@ async function generateWithGoogle(
   }
 
   // Model configurable via env var
-  const modelName = process.env.GOOGLE_AI_MODEL || 'gemini-2.0-flash';
+  const modelName = process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash';
   const model = google.getGenerativeModel({ model: modelName });
 
   const response = await model.generateContent({
