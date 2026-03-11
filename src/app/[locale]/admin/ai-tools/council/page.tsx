@@ -23,6 +23,7 @@ import {
   Vote,
   CheckCircle,
   Clock,
+  ImageIcon,
 } from 'lucide-react';
 
 interface ProposalView {
@@ -73,6 +74,28 @@ export default function CouncilPage() {
   const [location, setLocation] = useState('indoor');
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   const [modelTier, setModelTier] = useState<'economy' | 'premium'>('economy');
+  const [productImage, setProductImage] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState('');
+
+  const generateImage = async () => {
+    setImageLoading(true);
+    setImageError('');
+    try {
+      const res = await fetch('/api/ai/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, theme, ageGroup, language }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Image generation failed');
+      setProductImage(data.imageDataUrl);
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Could not generate image');
+    } finally {
+      setImageLoading(false);
+    }
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -128,6 +151,8 @@ export default function CouncilPage() {
       setResult(data.data);
       setStage('complete');
       setProgress(100);
+      setProductImage(null);
+      generateImage();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setStage('');
@@ -452,6 +477,46 @@ export default function CouncilPage() {
                   <pre className="text-sm text-gray-100">
                     {JSON.stringify(getCurrentProposal()?.content, null, 2)}
                   </pre>
+                </div>
+
+                {/* Product Image */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-900">Product Image</h4>
+                    <button
+                      onClick={generateImage}
+                      disabled={imageLoading}
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${imageLoading ? 'animate-spin' : ''}`} />
+                      {imageLoading ? 'Generating...' : 'Regenerate'}
+                    </button>
+                  </div>
+                  {imageLoading && !productImage && (
+                    <div className="flex h-48 items-center justify-center rounded-lg bg-gray-50">
+                      <div className="text-center text-gray-400">
+                        <ImageIcon className="mx-auto mb-2 h-8 w-8 animate-pulse" />
+                        <p className="text-sm">Generating product image...</p>
+                      </div>
+                    </div>
+                  )}
+                  {productImage && (
+                    <div className="relative overflow-hidden rounded-lg">
+                      <img
+                        src={productImage}
+                        alt="Generated product image"
+                        className="w-full rounded-lg object-cover"
+                      />
+                      {imageLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/70">
+                          <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {imageError && (
+                    <p className="text-xs text-red-500">{imageError}</p>
+                  )}
                 </div>
 
                 {/* Votes */}

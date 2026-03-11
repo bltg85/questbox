@@ -141,3 +141,28 @@ export function getAvailableProviders(): AIProvider[] {
   if (google) providers.push('google');
   return providers;
 }
+
+// Returns a base64 data URL or null if unavailable
+export async function generateProductImage(prompt: string): Promise<string | null> {
+  if (!google) return null;
+
+  const modelName = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-2.0-flash-exp';
+  const model = google.getGenerativeModel({ model: modelName });
+
+  const response = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseModalities: ['IMAGE'],
+    } as any,
+  });
+
+  const imagePart = response.response.candidates?.[0]?.content?.parts?.find(
+    (part: any) => part.inlineData
+  );
+
+  if (imagePart?.inlineData) {
+    return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+  }
+
+  return null;
+}
