@@ -6,7 +6,7 @@ import { Button, Input, Textarea, Select, Card, CardContent, CardHeader, CardTit
 import { createClient } from '@/lib/supabase/client';
 import { generateSlug } from '@/lib/utils';
 import type { Product, Category, ProductFormData } from '@/types';
-import { ImageIcon, Upload, Sparkles } from 'lucide-react';
+import { ImageIcon, Upload, Sparkles, FileText, ClipboardCheck } from 'lucide-react';
 
 interface ProductFormProps {
   product?: Product;
@@ -447,6 +447,53 @@ export function ProductForm({ product }: ProductFormProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* AI Content (read-only) */}
+      {product?.is_ai_generated && (
+        <Card>
+          <CardHeader>
+            <CardTitle>AI-genererat innehåll</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={`/api/products/${product.id}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                  product.file_url
+                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                    : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                {product.file_url ? 'Visa PDF' : 'Generera PDF-preview'}
+              </a>
+              <a
+                href={`/admin/review/${product.id}`}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                Öppna i Review
+              </a>
+            </div>
+            {product.ai_generation_data && (
+              <details className="rounded-lg border border-gray-100 bg-gray-50">
+                <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-gray-600">
+                  Visa AI-innehåll (JSON)
+                </summary>
+                <pre className="max-h-64 overflow-auto p-3 text-xs text-gray-700 whitespace-pre-wrap">
+                  {JSON.stringify(
+                    (product.ai_generation_data as unknown as Record<string, unknown>)?.parameters,
+                    null,
+                    2
+                  )}
+                </pre>
+              </details>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Actions */}
       <div className="flex justify-end gap-4">

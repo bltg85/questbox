@@ -109,13 +109,19 @@ export async function POST(request: NextRequest) {
     const localizedTitle = { en: title, sv: title };
     const localizedSlug = { en: slug, sv: slug };
 
+    // Extract description from AI content
+    const introduction: string = (content as Record<string, unknown>).introduction as string || '';
+    const shortDesc = introduction.slice(0, 220).trim();
+    const localizedDesc = { en: introduction, sv: introduction };
+    const localizedShortDesc = { en: shortDesc, sv: shortDesc };
+
     const { data, error } = await supabase
       .from('products')
       .insert({
         name: localizedTitle,
         slug: localizedSlug,
-        description: { en: '', sv: '' },
-        short_description: { en: '', sv: '' },
+        description: localizedDesc,
+        short_description: localizedShortDesc,
         product_type: type,
         age_group: ageGroup || 'all',
         difficulty_level: difficulty || 'medium',

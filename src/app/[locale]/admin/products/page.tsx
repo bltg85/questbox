@@ -98,11 +98,23 @@ export default async function AdminProductsPage() {
                 </td>
                 <td className="whitespace-nowrap px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <Link href={`/products/${getLocalizedValue(product.slug as any, 'en')}`}>
-                      <Button variant="ghost" size="icon">
-                        <Eye className="h-4 w-4" />
+                    {product.status === 'published' ? (
+                      <Link href={`/en/products/${getLocalizedValue(product.slug as any, 'en')}`}>
+                        <Button variant="ghost" size="icon" title="View public page">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    ) : (product as any).is_ai_generated ? (
+                      <Link href={`/admin/review/${product.id}`}>
+                        <Button variant="ghost" size="icon" title="Review (draft)">
+                          <Eye className="h-4 w-4 text-amber-400" />
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button variant="ghost" size="icon" disabled title="Not published">
+                        <Eye className="h-4 w-4 text-gray-300" />
                       </Button>
-                    </Link>
+                    )}
                     <Link href={`/admin/products/${product.id}`}>
                       <Button variant="ghost" size="icon">
                         <Edit className="h-4 w-4" />
