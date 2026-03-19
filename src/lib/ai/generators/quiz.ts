@@ -92,7 +92,8 @@ Make questions interesting and educational. Each question should have exactly 4 
   });
 
   try {
-    const parsed = JSON.parse(response.content);
+    const clean = response.content.replace(/^```(?:json)?\s*/m, '').replace(/\s*```$/m, '').trim();
+    const parsed = JSON.parse(clean);
     return QuizSchema.parse(parsed);
   } catch (error) {
     console.error('Failed to parse quiz response:', error);

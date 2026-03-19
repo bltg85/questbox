@@ -56,7 +56,8 @@ Make it celebratory, warm, and appropriate for the achievement.`;
   });
 
   try {
-    const parsed = JSON.parse(response.content);
+    const clean = response.content.replace(/^```(?:json)?\s*/m, '').replace(/\s*```$/m, '').trim();
+    const parsed = JSON.parse(clean);
     return DiplomaSchema.parse(parsed);
   } catch (error) {
     console.error('Failed to parse diploma response:', error);

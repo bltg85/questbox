@@ -93,7 +93,8 @@ Make the clues creative, fun, and appropriate for the theme. Each riddle should 
 
   // Parse and validate the response
   try {
-    const parsed = JSON.parse(response.content);
+    const clean = response.content.replace(/^```(?:json)?\s*/m, '').replace(/\s*```$/m, '').trim();
+    const parsed = JSON.parse(clean);
     return TreasureHuntSchema.parse(parsed);
   } catch (error) {
     console.error('Failed to parse treasure hunt response:', error);
