@@ -102,6 +102,9 @@ export default function AIToolsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, theme, ageGroup, language }),
       });
+      if (!res.ok && res.headers.get('content-type')?.includes('text/html')) {
+        throw new Error(res.status === 504 ? 'Image generation timed out. Try again.' : `Server error (${res.status})`);
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Image generation failed');
       setProductImage(data.imageDataUrl);

@@ -57,7 +57,12 @@ export async function POST(request: NextRequest) {
     const prompt = buildImagePrompt(type, theme, ageGroup);
     console.log('[Generate Image] Prompt:', prompt);
 
-    const imageDataUrl = await generateProductImage(prompt);
+    const timeoutMs = 55_000; // 55s — safely under Vercel's 60s hard limit
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Image generation timed out (55s). Try again.')), timeoutMs)
+    );
+
+    const imageDataUrl = await Promise.race([generateProductImage(prompt), timeoutPromise]);
 
     if (!imageDataUrl) {
       return NextResponse.json(

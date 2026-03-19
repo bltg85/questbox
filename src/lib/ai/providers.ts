@@ -184,8 +184,8 @@ export function getAvailableProviders(): AIProvider[] {
 export async function generateProductImage(prompt: string): Promise<string | null> {
   if (!google) return null;
 
-  const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-3-pro-image-preview'; // Nano Banana Pro
-  const fallbackModel = 'gemini-2.5-flash-image'; // Nano Banana 2
+  const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-2.5-flash-image'; // Nano Banana 2 (faster, within Vercel 60s limit)
+  const fallbackModel = 'gemini-3-pro-image-preview'; // Nano Banana Pro (slower, use via env var override)
 
   const tryGenerate = async (modelName: string): Promise<string | null> => {
     const model = google.getGenerativeModel({ model: modelName });

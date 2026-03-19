@@ -97,6 +97,9 @@ export function ProductForm({ product }: ProductFormProps) {
           ageGroup: formData.age_group,
         }),
       });
+      if (!res.ok && res.headers.get('content-type')?.includes('text/html')) {
+        throw new Error(res.status === 504 ? 'Image generation timed out. Try again.' : `Server error (${res.status})`);
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Generation failed');
       setImagePreview(data.imageDataUrl);
