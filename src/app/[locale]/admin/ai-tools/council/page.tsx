@@ -24,6 +24,8 @@ import {
   CheckCircle,
   Clock,
   ImageIcon,
+  Save,
+  FileDown,
 } from 'lucide-react';
 
 interface ProposalView {
@@ -77,6 +79,9 @@ export default function CouncilPage() {
   const [productImage, setProductImage] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const generateImage = async () => {
     setImageLoading(true);
@@ -94,6 +99,63 @@ export default function CouncilPage() {
       setImageError(err instanceof Error ? err.message : 'Could not generate image');
     } finally {
       setImageLoading(false);
+    }
+  };
+
+  const handleSaveAsProduct = async () => {
+    if (!result) return;
+    setSaving(true);
+    setSaveStatus(null);
+    const proposal = getCurrentProposal();
+    try {
+      const res = await fetch('/api/ai/save-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: proposal?.content,
+          type,
+          theme,
+          ageGroup,
+          difficulty,
+          language,
+          imageDataUrl: productImage,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to save');
+      setSaveStatus({ ok: true, message: `Sparad som utkast! ID: ${data.data.id.slice(0, 8)}…` });
+    } catch (err) {
+      setSaveStatus({ ok: false, message: err instanceof Error ? err.message : 'Fel vid sparning' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGeneratePDF = async () => {
+    if (!result) return;
+    setPdfLoading(true);
+    const proposal = getCurrentProposal();
+    try {
+      const res = await fetch('/api/ai/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: proposal?.content, type }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'PDF generation failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${proposal?.content?.title || theme || 'product'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'PDF generation failed');
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -538,16 +600,35 @@ export default function CouncilPage() {
                   </div>
                 </div>
 
-                {/* Stats */}
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>Total time: {(result.totalTimeMs / 1000).toFixed(1)}s</span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      Save as Product
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Generate PDF
-                    </Button>
+                {/* Stats + Actions */}
+                <div className="space-y-2">
+                  {saveStatus && (
+                    <div className={`rounded-lg px-3 py-2 text-sm ${saveStatus.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                      {saveStatus.message}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <span>Total time: {(result.totalTimeMs / 1000).toFixed(1)}s</span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveAsProduct}
+                        disabled={saving}
+                      >
+                        <Save className="mr-1 h-3 w-3" />
+                        {saving ? 'Sparar...' : 'Save as Product'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGeneratePDF}
+                        disabled={pdfLoading}
+                      >
+                        <FileDown className="mr-1 h-3 w-3" />
+                        {pdfLoading ? 'Genererar...' : 'Generate PDF'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
