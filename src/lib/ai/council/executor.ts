@@ -34,83 +34,77 @@ export async function runCouncil(
     console.log(`[Council] ${stage}: ${message} (${progress}%)`);
   };
 
-  // ============== ROUND 1: GENERATE ==============
+  // ============== ROUND 1: GENERATE (parallel) ==============
   report('generating', 10, 'Starting generation from all providers...');
 
-  const proposals: GeneratedProposal[] = [];
   const generationPrompt = buildGenerationPrompt(input);
 
-  for (let i = 0; i < activeProviders.length; i++) {
-    const provider = activeProviders[i];
-    report('generating', 10 + (i + 1) * 10, `${provider} is creating...`);
-
-    try {
-      const response = await generateWithAI({
+  const generationResults = await Promise.allSettled(
+    activeProviders.map(provider =>
+      generateWithAI({
         systemPrompt: getGenerationSystemPrompt(input),
         userPrompt: generationPrompt,
         provider,
         modelTier: input.modelTier,
-      });
+      }).then(response => ({ provider, content: parseJSON(response.content) }))
+    )
+  );
 
-      const content = parseJSON(response.content);
-      proposals.push({
-        provider,
-        content,
-        generatedAt: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error(`Generation failed for ${provider}:`, error);
-    }
-  }
+  const proposals: GeneratedProposal[] = generationResults
+    .filter((r): r is PromiseFulfilledResult<{ provider: AIProvider; content: any }> => r.status === 'fulfilled')
+    .map(r => ({ provider: r.value.provider, content: r.value.content, generatedAt: new Date().toISOString() }));
+
+  generationResults.filter(r => r.status === 'rejected').forEach((r, i) =>
+    console.error(`Generation failed for ${activeProviders[i]}:`, (r as PromiseRejectedResult).reason)
+  );
 
   if (proposals.length < 2) {
     throw new Error('Not enough successful generations to continue council');
   }
 
-  // ============== ROUND 2: FEEDBACK ==============
+  // ============== ROUND 2: FEEDBACK (parallel) ==============
   report('feedback', 40, 'Gathering feedback from all providers...');
 
-  const allFeedback: FeedbackItem[] = [];
+  const feedbackPairs = proposals.flatMap(reviewer =>
+    proposals
+      .filter(target => target.provider !== reviewer.provider)
+      .map(target => ({ reviewer, target }))
+  );
 
-  for (const reviewer of proposals) {
-    for (const target of proposals) {
-      if (reviewer.provider === target.provider) continue;
-
-      report('feedback', 45, `${reviewer.provider} reviewing ${target.provider}'s work...`);
-
-      try {
-        const response = await generateWithAI({
-          systemPrompt: getFeedbackSystemPrompt(input),
-          userPrompt: `Review this ${input.type}:\n\n${JSON.stringify(target.content, null, 2)}`,
-          provider: reviewer.provider,
-          modelTier: input.modelTier,
-        });
-
+  const feedbackResults = await Promise.allSettled(
+    feedbackPairs.map(({ reviewer, target }) =>
+      generateWithAI({
+        systemPrompt: getFeedbackSystemPrompt(input),
+        userPrompt: `Review this ${input.type}:\n\n${JSON.stringify(target.content, null, 2)}`,
+        provider: reviewer.provider,
+        modelTier: input.modelTier,
+      }).then(response => {
         const feedback = parseJSON(response.content);
-        allFeedback.push({
+        return {
           fromProvider: reviewer.provider,
           toProvider: target.provider,
           strengths: feedback.strengths || [],
           improvements: feedback.improvements || [],
           specificSuggestions: feedback.specificSuggestions || [],
-        });
-      } catch (error) {
-        console.error(`Feedback failed from ${reviewer.provider} to ${target.provider}:`, error);
-      }
-    }
-  }
+        } as FeedbackItem;
+      })
+    )
+  );
 
-  // ============== ROUND 3: ITERATE ==============
+  const allFeedback: FeedbackItem[] = feedbackResults
+    .filter((r): r is PromiseFulfilledResult<FeedbackItem> => r.status === 'fulfilled')
+    .map(r => r.value);
+
+  feedbackResults.filter(r => r.status === 'rejected').forEach((r, i) =>
+    console.error(`Feedback failed for pair ${i}:`, (r as PromiseRejectedResult).reason)
+  );
+
+  // ============== ROUND 3: ITERATE (parallel) ==============
   report('iterating', 60, 'Each provider is improving their version...');
 
-  const iteratedProposals: IteratedProposal[] = [];
-
-  for (const proposal of proposals) {
-    const feedbackForThis = allFeedback.filter(f => f.toProvider === proposal.provider);
-
-    report('iterating', 65, `${proposal.provider} is refining based on feedback...`);
-
-    try {
+  const iterationResults = await Promise.allSettled(
+    proposals.map(proposal => {
+      const feedbackForThis = allFeedback.filter(f => f.toProvider === proposal.provider);
       const feedbackSummary = feedbackForThis.map(f =>
         `Feedback from ${f.fromProvider}:\n` +
         `Strengths: ${f.strengths.join(', ')}\n` +
@@ -118,75 +112,69 @@ export async function runCouncil(
         `Suggestions: ${f.specificSuggestions.join(', ')}`
       ).join('\n\n');
 
-      const response = await generateWithAI({
+      return generateWithAI({
         systemPrompt: getIterationSystemPrompt(input),
         userPrompt: `Your original ${input.type}:\n${JSON.stringify(proposal.content, null, 2)}\n\nFeedback received:\n${feedbackSummary}\n\nPlease improve your content based on this feedback.`,
         provider: proposal.provider,
         modelTier: input.modelTier,
+      }).then(response => {
+        const improved = parseJSON(response.content);
+        return {
+          provider: proposal.provider,
+          content: improved.changes_made ? { ...improved, changes_made: undefined } : improved,
+          generatedAt: new Date().toISOString(),
+          version: 2,
+          feedbackReceived: feedbackForThis,
+          changesApplied: improved.changes_made || ['Improvements applied based on feedback'],
+        } as IteratedProposal;
+      }).catch(error => {
+        console.error(`Iteration failed for ${proposal.provider}:`, error);
+        const feedbackForThis = allFeedback.filter(f => f.toProvider === proposal.provider);
+        return { ...proposal, version: 1, feedbackReceived: feedbackForThis, changesApplied: [] } as IteratedProposal;
       });
+    })
+  );
 
-      const improved = parseJSON(response.content);
-      iteratedProposals.push({
-        provider: proposal.provider,
-        content: improved.changes_made ? { ...improved, changes_made: undefined } : improved,
-        generatedAt: new Date().toISOString(),
-        version: 2,
-        feedbackReceived: feedbackForThis,
-        changesApplied: improved.changes_made || ['Improvements applied based on feedback'],
-      });
-    } catch (error) {
-      console.error(`Iteration failed for ${proposal.provider}:`, error);
-      // Fall back to original
-      iteratedProposals.push({
-        ...proposal,
-        version: 1,
-        feedbackReceived: feedbackForThis,
-        changesApplied: [],
-      });
-    }
-  }
+  const iteratedProposals: IteratedProposal[] = iterationResults
+    .filter((r): r is PromiseFulfilledResult<IteratedProposal> => r.status === 'fulfilled')
+    .map(r => r.value);
 
-  // ============== ROUND 4: VOTE ==============
+  // ============== ROUND 4: VOTE (parallel) ==============
   report('voting', 80, 'Providers are voting on the best version...');
 
-  const votes: Vote[] = [];
+  const voteResults = await Promise.allSettled(
+    iteratedProposals.map(voter => {
+      const otherProposals = iteratedProposals.filter(p => p.provider !== voter.provider);
+      const proposalsToJudge = otherProposals.map(p =>
+        `=== ${p.provider.toUpperCase()}'s VERSION ===\n${JSON.stringify(p.content, null, 2)}`
+      ).join('\n\n');
 
-  for (const voter of iteratedProposals) {
-    const otherProposals = iteratedProposals.filter(p => p.provider !== voter.provider);
-
-    const proposalsToJudge = otherProposals.map(p =>
-      `=== ${p.provider.toUpperCase()}'s VERSION ===\n${JSON.stringify(p.content, null, 2)}`
-    ).join('\n\n');
-
-    report('voting', 85, `${voter.provider} is casting their vote...`);
-
-    try {
-      const response = await generateWithAI({
+      return generateWithAI({
         systemPrompt: getVotingSystemPrompt(),
         userPrompt: `You are ${voter.provider}. Vote for the BEST version (not your own).\n\nOptions:\n${proposalsToJudge}`,
         provider: voter.provider,
         modelTier: input.modelTier,
+      }).then(response => {
+        const voteData = parseJSON(response.content);
+        let votedFor = voteData.votedFor?.toLowerCase();
+        if (votedFor === voter.provider) votedFor = otherProposals[0].provider;
+        return {
+          voter: voter.provider,
+          votedFor: votedFor as AIProvider,
+          reasoning: voteData.reasoning || 'No reasoning provided',
+          scores: voteData.scores || { creativity: 7, ageAppropriateness: 7, engagement: 7, clarity: 7, overall: 7 },
+        } as Vote;
       });
+    })
+  );
 
-      const voteData = parseJSON(response.content);
+  const votes: Vote[] = voteResults
+    .filter((r): r is PromiseFulfilledResult<Vote> => r.status === 'fulfilled')
+    .map(r => r.value);
 
-      // Validate vote is not for self
-      let votedFor = voteData.votedFor?.toLowerCase();
-      if (votedFor === voter.provider) {
-        // Force vote for someone else
-        votedFor = otherProposals[0].provider;
-      }
-
-      votes.push({
-        voter: voter.provider,
-        votedFor: votedFor as AIProvider,
-        reasoning: voteData.reasoning || 'No reasoning provided',
-        scores: voteData.scores || { creativity: 7, ageAppropriateness: 7, engagement: 7, clarity: 7, overall: 7 },
-      });
-    } catch (error) {
-      console.error(`Voting failed for ${voter.provider}:`, error);
-    }
-  }
+  voteResults.filter(r => r.status === 'rejected').forEach((r, i) =>
+    console.error(`Voting failed for ${iteratedProposals[i]?.provider}:`, (r as PromiseRejectedResult).reason)
+  );
 
   // ============== TALLY RESULTS ==============
   report('complete', 95, 'Tallying votes and preparing results...');
