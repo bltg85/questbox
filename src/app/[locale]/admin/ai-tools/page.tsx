@@ -90,6 +90,7 @@ export default function AIToolsPage() {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [generationTimeMs, setGenerationTimeMs] = useState<number | null>(null);
 
   const isCouncilMode = mode === 'economy' || mode === 'premium';
 
@@ -180,6 +181,8 @@ export default function AIToolsPage() {
     setSingleResult(null);
     setProductImage(null);
     setSaveStatus(null);
+    setGenerationTimeMs(null);
+    const startTime = Date.now();
 
     if (!isCouncilMode) {
       // Single model generation
@@ -201,6 +204,7 @@ export default function AIToolsPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Generation failed');
+        setGenerationTimeMs(Date.now() - startTime);
         setSingleResult(data);
         generateImage();
       } catch (err) {
@@ -251,6 +255,7 @@ export default function AIToolsPage() {
       if (!res.ok || !data.success) throw new Error(data.error || 'Council failed');
 
       setCouncilResult(data.data);
+      setGenerationTimeMs(Date.now() - startTime);
       setStage('complete');
       setProgress(100);
       generateImage();
@@ -496,7 +501,15 @@ export default function AIToolsPage() {
         {/* Results */}
         <Card>
           <CardHeader>
-            <CardTitle>Results</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Results</CardTitle>
+              {generationTimeMs !== null && (
+                <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
+                  <Clock className="h-3.5 w-3.5" />
+                  {(generationTimeMs / 1000).toFixed(1)}s
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {!hasResult && !loading && (
@@ -629,11 +642,6 @@ export default function AIToolsPage() {
                     </div>
                   )}
                   <div className="flex items-center justify-between">
-                    {councilResult && (
-                      <span className="text-sm text-gray-500">
-                        Total time: {(councilResult.totalTimeMs / 1000).toFixed(1)}s
-                      </span>
-                    )}
                     <div className="ml-auto flex gap-2">
                       <Button variant="outline" size="sm" onClick={handleSaveAsProduct} disabled={saving}>
                         <Save className="mr-1 h-3 w-3" />
