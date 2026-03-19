@@ -42,9 +42,12 @@ const OPERATION_LABELS: Record<string, string> = {
   single: 'Enstaka anrop',
 };
 
+const USD_TO_SEK = 9.36;
+
 function formatCost(usd: number): string {
-  if (usd < 0.001) return `$${(usd * 100).toFixed(4)}¢`;
-  return `$${usd.toFixed(4)}`;
+  const sek = usd * USD_TO_SEK;
+  if (sek < 0.01) return `${(sek * 100).toFixed(4)} öre`;
+  return `${sek.toFixed(4)} kr`;
 }
 
 function formatTokens(n: number): string {
@@ -97,8 +100,6 @@ export default function AiCostsPage() {
 
   if (!stats) return null;
 
-  const totalCostSEK = stats.totalCost * 10.5; // rough USD→SEK
-  const monthCostSEK = stats.monthCost * 10.5;
 
   // Sort models by cost descending
   const modelEntries = Object.entries(stats.byModel).sort((a, b) => b[1].cost - a[1].cost);
@@ -111,7 +112,7 @@ export default function AiCostsPage() {
     <div>
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">AI-kostnader</h1>
-        <p className="text-sm text-gray-500">Priser är uppskattningar — uppdateras inte automatiskt</p>
+        <p className="text-sm text-gray-500">Priser i SEK (1 USD = {USD_TO_SEK} kr) — uppskattningar</p>
       </div>
 
       {/* Summary cards */}
@@ -122,7 +123,6 @@ export default function AiCostsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900">{formatCost(stats.totalCost)}</div>
-            <div className="text-sm text-gray-500">≈ {totalCostSEK.toFixed(2)} SEK</div>
           </CardContent>
         </Card>
 
@@ -132,7 +132,6 @@ export default function AiCostsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-indigo-600">{formatCost(stats.monthCost)}</div>
-            <div className="text-sm text-gray-500">≈ {monthCostSEK.toFixed(2)} SEK</div>
           </CardContent>
         </Card>
 
