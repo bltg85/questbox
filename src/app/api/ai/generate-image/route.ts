@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generateProductImage } from '@/lib/ai/providers';
 
+export const maxDuration = 60; // Max for Vercel Hobby plan
+
 const ImageRequestSchema = z.object({
   type: z.string(),
   theme: z.string(),

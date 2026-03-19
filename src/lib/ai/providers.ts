@@ -145,7 +145,7 @@ export function getAvailableProviders(): AIProvider[] {
 export async function generateProductImage(prompt: string): Promise<string | null> {
   if (!google) return null;
 
-  const modelName = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-2.0-flash-preview-image-generation';
+  const modelName = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-2.0-flash-exp-image-generation';
   const model = google.getGenerativeModel({ model: modelName });
 
   const response = await model.generateContent({
