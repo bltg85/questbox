@@ -184,8 +184,8 @@ export function getAvailableProviders(): AIProvider[] {
 export async function generateProductImage(prompt: string): Promise<string | null> {
   if (!google) return null;
 
-  const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-2.5-flash-image'; // Nano Banana 2 (faster, within Vercel 60s limit)
-  const fallbackModel = 'gemini-3-pro-image-preview'; // Nano Banana Pro (slower, use via env var override)
+  const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-3-pro-image-preview'; // Nano Banana Pro
+  const fallbackModel = 'gemini-2.5-flash-image'; // Nano Banana 2 (faster, fallback)
 
   const tryGenerate = async (modelName: string): Promise<string | null> => {
     const model = google.getGenerativeModel({ model: modelName });
@@ -208,8 +208,15 @@ export async function generateProductImage(prompt: string): Promise<string | nul
 
   try {
     const result = await tryGenerate(primaryModel);
-    if (result) logImageUsage({ model: primaryModel, context: 'generate-image' });
-    return result;
+    if (result) {
+      logImageUsage({ model: primaryModel, context: 'generate-image' });
+      return result;
+    }
+    // Primary returned null (no image part) — try fallback
+    console.warn(`[Image] ${primaryModel} returned no image, falling back to ${fallbackModel}`);
+    const fallback = await tryGenerate(fallbackModel);
+    if (fallback) logImageUsage({ model: fallbackModel, context: 'generate-image' });
+    return fallback;
   } catch (error: any) {
     const status = error?.status ?? error?.httpStatus;
     if (status === 503 || status === 429) {
