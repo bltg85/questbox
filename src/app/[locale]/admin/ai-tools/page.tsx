@@ -1,339 +1,647 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Select, Textarea } from '@/components/ui';
-import { Sparkles, Wand2, FileText, Award, Users, ArrowRight } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Input,
+  Select,
+  Textarea,
+  Badge,
+} from '@/components/ui';
+import {
+  Sparkles,
+  Trophy,
+  Medal,
+  MessageSquare,
+  RefreshCw,
+  Vote,
+  CheckCircle,
+  Clock,
+  ImageIcon,
+  Save,
+  FileDown,
+  Wand2,
+} from 'lucide-react';
 
-type GeneratorType = 'treasure_hunt' | 'quiz' | 'diploma';
+type Mode = 'economy' | 'premium' | 'single';
+
+interface ProposalView {
+  provider: string;
+  content: any;
+  version: number;
+  changesApplied?: string[];
+}
+
+interface VoteView {
+  voter: string;
+  votedFor: string;
+  reasoning: string;
+  scores: {
+    creativity: number;
+    ageAppropriateness: number;
+    engagement: number;
+    clarity: number;
+    overall: number;
+  };
+}
+
+interface CouncilResultView {
+  winner: ProposalView;
+  runnerUp: ProposalView | null;
+  allProposals: ProposalView[];
+  votes: VoteView[];
+  summary: string;
+  totalTimeMs: number;
+}
+
+interface SingleResultView {
+  data: any;
+  meta: { provider: string; generatedAt: string };
+}
 
 export default function AIToolsPage() {
-  const [activeGenerator, setActiveGenerator] = useState<GeneratorType>('treasure_hunt');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [stage, setStage] = useState<string>('');
+  const [progress, setProgress] = useState(0);
+  const [councilResult, setCouncilResult] = useState<CouncilResultView | null>(null);
+  const [singleResult, setSingleResult] = useState<SingleResultView | null>(null);
   const [error, setError] = useState('');
+  const [selectedProposal, setSelectedProposal] = useState<string>('winner');
 
-  // Treasure Hunt state
+  // Form state
+  const [type, setType] = useState('treasure_hunt');
   const [theme, setTheme] = useState('');
-  const [numberOfClues, setNumberOfClues] = useState(5);
-  const [location, setLocation] = useState('indoor');
-
-  // Quiz state
-  const [topic, setTopic] = useState('');
-  const [numberOfQuestions, setNumberOfQuestions] = useState(10);
-
-  // Diploma state
-  const [achievementType, setAchievementType] = useState('');
-  const [recipientName, setRecipientName] = useState('');
-  const [customMessage, setCustomMessage] = useState('');
-
-  // Common state
   const [ageGroup, setAgeGroup] = useState('child');
   const [difficulty, setDifficulty] = useState('medium');
-  const [language, setLanguage] = useState('en');
-  const [provider, setProvider] = useState('');
+  const [language, setLanguage] = useState('sv');
+  const [numberOfClues, setNumberOfClues] = useState(5);
+  const [numberOfQuestions, setNumberOfQuestions] = useState(10);
+  const [location, setLocation] = useState('indoor');
+  const [additionalInstructions, setAdditionalInstructions] = useState('');
+  const [mode, setMode] = useState<Mode>('economy');
+  const [singleProvider, setSingleProvider] = useState('openai');
+  const [productImage, setProductImage] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
-  const generators = [
-    { id: 'treasure_hunt', name: 'Treasure Hunt', icon: Sparkles, color: 'bg-amber-500' },
-    { id: 'quiz', name: 'Quiz', icon: FileText, color: 'bg-blue-500' },
-    { id: 'diploma', name: 'Diploma', icon: Award, color: 'bg-green-500' },
-  ];
+  const isCouncilMode = mode === 'economy' || mode === 'premium';
+
+  const generateImage = async () => {
+    setImageLoading(true);
+    setImageError('');
+    try {
+      const res = await fetch('/api/ai/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, theme, ageGroup, language }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Image generation failed');
+      setProductImage(data.imageDataUrl);
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Could not generate image');
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  const getCurrentContent = () => {
+    if (isCouncilMode && councilResult) {
+      if (selectedProposal === 'winner') return councilResult.winner?.content;
+      if (selectedProposal === 'runnerUp') return councilResult.runnerUp?.content;
+      return councilResult.allProposals.find(p => p.provider === selectedProposal)?.content;
+    }
+    return singleResult?.data;
+  };
+
+  const handleSaveAsProduct = async () => {
+    const content = getCurrentContent();
+    if (!content) return;
+    setSaving(true);
+    setSaveStatus(null);
+    try {
+      const res = await fetch('/api/ai/save-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, type, theme, ageGroup, difficulty, language, imageDataUrl: productImage }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to save');
+      setSaveStatus({ ok: true, message: `Sparad som utkast! ID: ${data.data.id.slice(0, 8)}…` });
+    } catch (err) {
+      setSaveStatus({ ok: false, message: err instanceof Error ? err.message : 'Fel vid sparning' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGeneratePDF = async () => {
+    const content = getCurrentContent();
+    if (!content) return;
+    setPdfLoading(true);
+    try {
+      const res = await fetch('/api/ai/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, type }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'PDF generation failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${content?.title || theme || 'product'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'PDF generation failed');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
     setError('');
-    setResult(null);
+    setCouncilResult(null);
+    setSingleResult(null);
+    setProductImage(null);
+    setSaveStatus(null);
+
+    if (!isCouncilMode) {
+      // Single model generation
+      try {
+        const params: Record<string, unknown> = { ageGroup, difficulty, language };
+        if (type === 'treasure_hunt') {
+          params.theme = theme;
+          params.numberOfClues = numberOfClues;
+          params.location = location;
+        } else if (type === 'quiz') {
+          params.topic = theme;
+          params.numberOfQuestions = numberOfQuestions;
+        }
+
+        const res = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, params, provider: singleProvider }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Generation failed');
+        setSingleResult(data);
+        generateImage();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Council generation
+    setStage('generating');
+    setProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setProgress(prev => prev >= 90 ? prev : prev + Math.random() * 10);
+    }, 2000);
+
+    const stages = ['generating', 'feedback', 'iterating', 'voting', 'complete'];
+    let stageIndex = 0;
+    const stageInterval = setInterval(() => {
+      stageIndex++;
+      if (stageIndex < stages.length) setStage(stages[stageIndex]);
+    }, 8000);
 
     try {
-      const params: Record<string, unknown> = {
-        ageGroup,
-        difficulty,
-        language,
-      };
-
-      if (activeGenerator === 'treasure_hunt') {
-        params.theme = theme;
-        params.numberOfClues = numberOfClues;
-        params.location = location;
-      } else if (activeGenerator === 'quiz') {
-        params.topic = topic;
-        params.numberOfQuestions = numberOfQuestions;
-      } else if (activeGenerator === 'diploma') {
-        params.achievementType = achievementType;
-        params.recipientName = recipientName;
-        params.customMessage = customMessage;
-      }
-
-      const res = await fetch('/api/ai/generate', {
+      const res = await fetch('/api/ai/council', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: activeGenerator,
-          params,
-          provider: provider || undefined,
+          type,
+          theme,
+          ageGroup,
+          difficulty,
+          language,
+          modelTier: mode,
+          numberOfClues: type === 'treasure_hunt' ? numberOfClues : undefined,
+          numberOfQuestions: type === 'quiz' ? numberOfQuestions : undefined,
+          location: type === 'treasure_hunt' ? location : undefined,
+          additionalInstructions: additionalInstructions || undefined,
         }),
       });
 
+      clearInterval(progressInterval);
+      clearInterval(stageInterval);
+
       const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Council failed');
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Generation failed');
-      }
-
-      setResult(data);
+      setCouncilResult(data.data);
+      setStage('complete');
+      setProgress(100);
+      generateImage();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setStage('');
     } finally {
       setLoading(false);
+      clearInterval(progressInterval);
+      clearInterval(stageInterval);
     }
   };
 
-  const ageGroupOptions = [
-    { value: 'toddler', label: '2-4 years' },
-    { value: 'child', label: '5-8 years' },
-    { value: 'teen', label: '9-12 years' },
-    { value: 'adult', label: '13+ years' },
-    { value: 'all', label: 'All ages' },
-  ];
+  const getProviderColor = (provider: string) => {
+    switch (provider) {
+      case 'anthropic': return 'bg-orange-500';
+      case 'openai': return 'bg-green-500';
+      case 'google': return 'bg-blue-500';
+      default: return 'bg-gray-500';
+    }
+  };
 
-  const difficultyOptions = [
-    { value: 'easy', label: 'Easy' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'hard', label: 'Hard' },
-  ];
+  const getProviderName = (provider: string) => {
+    switch (provider) {
+      case 'anthropic': return 'Claude';
+      case 'openai': return 'OpenAI';
+      case 'google': return 'Gemini';
+      default: return provider;
+    }
+  };
 
-  const languageOptions = [
-    { value: 'en', label: 'English' },
-    { value: 'sv', label: 'Swedish' },
-  ];
+  const getStageIcon = (s: string) => {
+    switch (s) {
+      case 'generating': return <Sparkles className="h-5 w-5 animate-pulse" />;
+      case 'feedback': return <MessageSquare className="h-5 w-5 animate-pulse" />;
+      case 'iterating': return <RefreshCw className="h-5 w-5 animate-spin" />;
+      case 'voting': return <Vote className="h-5 w-5 animate-pulse" />;
+      case 'complete': return <CheckCircle className="h-5 w-5 text-green-500" />;
+      default: return <Clock className="h-5 w-5" />;
+    }
+  };
 
-  const providerOptions = [
-    { value: '', label: 'Auto (recommended)' },
-    { value: 'openai', label: 'OpenAI GPT-4' },
-    { value: 'anthropic', label: 'Anthropic Claude' },
-    { value: 'google', label: 'Google Gemini' },
-  ];
+  const getStageText = (s: string) => {
+    switch (s) {
+      case 'generating': return 'All AI models are creating their proposals...';
+      case 'feedback': return 'Models are reviewing each other\'s work...';
+      case 'iterating': return 'Each model is improving based on feedback...';
+      case 'voting': return 'Models are voting for the best version...';
+      case 'complete': return 'Council complete!';
+      default: return 'Starting...';
+    }
+  };
 
-  const locationOptions = [
-    { value: 'indoor', label: 'Indoor' },
-    { value: 'outdoor', label: 'Outdoor' },
-    { value: 'mixed', label: 'Mixed' },
-  ];
+  const hasResult = councilResult || singleResult;
 
   return (
     <div>
       <h1 className="mb-8 text-3xl font-bold text-gray-900">AI Tools</h1>
 
-      {/* Council CTA */}
-      <Link href="/admin/ai-tools/council">
-        <div className="mb-8 flex items-center justify-between rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-6 transition-all hover:border-indigo-400">
-          <div className="flex items-center gap-4">
-            <div className="rounded-xl bg-indigo-600 p-3">
-              <Users className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">AI Council</h2>
-              <p className="text-sm text-gray-600">
-                Multi-agent collaboration: 3 AI models generate, give feedback, iterate, and vote for the best result
-              </p>
-            </div>
-          </div>
-          <ArrowRight className="h-5 w-5 text-indigo-600" />
-        </div>
-      </Link>
-
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-700">Quick Generation (Single Model)</h2>
-        <p className="text-sm text-gray-500">For fast results with a single AI provider</p>
-      </div>
-
-      {/* Generator Selection */}
-      <div className="mb-8 flex gap-4">
-        {generators.map((gen) => (
-          <button
-            key={gen.id}
-            onClick={() => {
-              setActiveGenerator(gen.id as GeneratorType);
-              setResult(null);
-            }}
-            className={`flex items-center gap-3 rounded-xl border-2 p-4 transition-all ${
-              activeGenerator === gen.id
-                ? 'border-indigo-600 bg-indigo-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className={`rounded-lg p-2 ${gen.color} text-white`}>
-              <gen.icon className="h-5 w-5" />
-            </div>
-            <span className="font-medium">{gen.name}</span>
-          </button>
-        ))}
-      </div>
-
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Input Form */}
         <Card>
           <CardHeader>
-            <CardTitle>
-              {activeGenerator === 'treasure_hunt' && 'Treasure Hunt Generator'}
-              {activeGenerator === 'quiz' && 'Quiz Generator'}
-              {activeGenerator === 'diploma' && 'Diploma Generator'}
-            </CardTitle>
+            <CardTitle>Configure Generation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Treasure Hunt Fields */}
-            {activeGenerator === 'treasure_hunt' && (
-              <>
-                <Input
-                  label="Theme"
-                  placeholder="e.g., Pirates, Dinosaurs, Space"
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value)}
-                />
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Input
-                    label="Number of Clues"
-                    type="number"
-                    min={3}
-                    max={15}
-                    value={numberOfClues}
-                    onChange={(e) => setNumberOfClues(parseInt(e.target.value))}
-                  />
-                  <Select
-                    label="Location"
-                    options={locationOptions}
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                  />
-                </div>
-              </>
-            )}
+            <Select
+              label="Product Type"
+              options={[
+                { value: 'treasure_hunt', label: 'Treasure Hunt' },
+                { value: 'quiz', label: 'Quiz' },
+              ]}
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+            />
 
-            {/* Quiz Fields */}
-            {activeGenerator === 'quiz' && (
-              <>
-                <Input
-                  label="Topic"
-                  placeholder="e.g., Animals, History, Science"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                />
-                <Input
-                  label="Number of Questions"
-                  type="number"
-                  min={5}
-                  max={30}
-                  value={numberOfQuestions}
-                  onChange={(e) => setNumberOfQuestions(parseInt(e.target.value))}
-                />
-              </>
-            )}
+            <Input
+              label="Theme"
+              placeholder="e.g., Pirates, Dinosaurs, Space, Swedish History"
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+            />
 
-            {/* Diploma Fields */}
-            {activeGenerator === 'diploma' && (
-              <>
-                <Input
-                  label="Achievement Type"
-                  placeholder="e.g., Treasure Hunt Completion, Best Helper"
-                  value={achievementType}
-                  onChange={(e) => setAchievementType(e.target.value)}
-                />
-                <Input
-                  label="Recipient Name (optional)"
-                  placeholder="Leave empty for template"
-                  value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
-                />
-                <Textarea
-                  label="Custom Message (optional)"
-                  placeholder="Add any custom text to include"
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  rows={2}
-                />
-              </>
-            )}
-
-            {/* Common Fields */}
             <div className="grid gap-4 md:grid-cols-2">
               <Select
                 label="Age Group"
-                options={ageGroupOptions}
+                options={[
+                  { value: 'toddler', label: '2-4 years' },
+                  { value: 'child', label: '5-8 years' },
+                  { value: 'teen', label: '9-12 years' },
+                  { value: 'adult', label: '13+ years' },
+                  { value: 'all', label: 'All ages' },
+                ]}
                 value={ageGroup}
                 onChange={(e) => setAgeGroup(e.target.value)}
               />
               <Select
                 label="Difficulty"
-                options={difficultyOptions}
+                options={[
+                  { value: 'easy', label: 'Easy' },
+                  { value: 'medium', label: 'Medium' },
+                  { value: 'hard', label: 'Hard' },
+                ]}
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value)}
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Select
-                label="Language"
-                options={languageOptions}
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
+            <Select
+              label="Language"
+              options={[
+                { value: 'sv', label: 'Swedish' },
+                { value: 'en', label: 'English' },
+              ]}
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+            />
+
+            {type === 'treasure_hunt' && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Input
+                  label="Number of Clues"
+                  type="number"
+                  min={3}
+                  max={15}
+                  value={numberOfClues}
+                  onChange={(e) => setNumberOfClues(parseInt(e.target.value))}
+                />
+                <Select
+                  label="Location"
+                  options={[
+                    { value: 'indoor', label: 'Indoor' },
+                    { value: 'outdoor', label: 'Outdoor' },
+                    { value: 'mixed', label: 'Mixed' },
+                  ]}
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </div>
+            )}
+
+            {type === 'quiz' && (
+              <Input
+                label="Number of Questions"
+                type="number"
+                min={5}
+                max={30}
+                value={numberOfQuestions}
+                onChange={(e) => setNumberOfQuestions(parseInt(e.target.value))}
               />
+            )}
+
+            {isCouncilMode && (
+              <Textarea
+                label="Additional Instructions (optional)"
+                placeholder="Any specific requirements or style preferences..."
+                value={additionalInstructions}
+                onChange={(e) => setAdditionalInstructions(e.target.value)}
+                rows={2}
+              />
+            )}
+
+            {/* Mode Toggle */}
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-700">Mode</p>
+              <div className="flex rounded-lg border border-gray-200 p-1">
+                {[
+                  { value: 'economy', label: 'Economy', sub: 'Council · 3 models' },
+                  { value: 'premium', label: 'Premium', sub: 'Council · best models' },
+                  { value: 'single', label: 'Single', sub: 'One model, fast' },
+                ].map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => setMode(m.value as Mode)}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-sm font-medium transition-colors ${
+                      mode === m.value
+                        ? 'bg-indigo-600 text-white'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {m.label}
+                    {mode === m.value && (
+                      <span className="ml-1 block text-xs opacity-75">{m.sub}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Single model provider selector */}
+            {mode === 'single' && (
               <Select
                 label="AI Provider"
-                options={providerOptions}
-                value={provider}
-                onChange={(e) => setProvider(e.target.value)}
+                options={[
+                  { value: 'openai', label: 'OpenAI' },
+                  { value: 'anthropic', label: 'Anthropic Claude' },
+                  { value: 'google', label: 'Google Gemini' },
+                ]}
+                value={singleProvider}
+                onChange={(e) => setSingleProvider(e.target.value)}
               />
-            </div>
+            )}
 
             {error && (
               <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
             )}
 
-            <Button onClick={handleGenerate} loading={loading} className="w-full">
-              <Wand2 className="mr-2 h-4 w-4" />
-              Generate
+            <Button onClick={handleGenerate} disabled={loading || !theme} className="w-full">
+              {loading ? (
+                <>
+                  {isCouncilMode ? getStageIcon(stage) : <RefreshCw className="h-4 w-4 animate-spin" />}
+                  <span className="ml-2">{isCouncilMode ? getStageText(stage) : 'Generating...'}</span>
+                </>
+              ) : (
+                <>
+                  {isCouncilMode ? <Sparkles className="mr-2 h-4 w-4" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                  {isCouncilMode ? 'Run AI Council' : 'Generate'}
+                </>
+              )}
             </Button>
+
+            {loading && isCouncilMode && (
+              <div className="space-y-2">
+                <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${progress}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>
+                    {stage === 'generating' && '1/4 Generating'}
+                    {stage === 'feedback' && '2/4 Feedback'}
+                    {stage === 'iterating' && '3/4 Iterating'}
+                    {stage === 'voting' && '4/4 Voting'}
+                    {stage === 'complete' && 'Complete!'}
+                  </span>
+                  <span>{Math.round(progress)}%</span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Result */}
+        {/* Results */}
         <Card>
           <CardHeader>
-            <CardTitle>Generated Content</CardTitle>
+            <CardTitle>Results</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading && (
-              <div className="flex h-64 items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <div className="mb-4 animate-spin text-4xl">✨</div>
-                  <p>Generating...</p>
-                </div>
-              </div>
-            )}
-
-            {!loading && !result && (
+            {!hasResult && !loading && (
               <div className="flex h-64 items-center justify-center text-gray-400">
                 <div className="text-center">
-                  <Wand2 className="mx-auto mb-4 h-12 w-12" />
-                  <p>Generated content will appear here</p>
+                  <Sparkles className="mx-auto mb-4 h-12 w-12" />
+                  <p>Configure and generate to see results</p>
                 </div>
               </div>
             )}
 
-            {result && (
+            {/* Single model result */}
+            {singleResult && (
               <div className="space-y-4">
                 <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-                  Generated with {result.meta.provider} at {new Date(result.meta.generatedAt).toLocaleTimeString()}
+                  Generated with {singleResult.meta.provider} at{' '}
+                  {new Date(singleResult.meta.generatedAt).toLocaleTimeString()}
                 </div>
-                <pre className="max-h-96 overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100">
-                  {JSON.stringify(result.data, null, 2)}
-                </pre>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => navigator.clipboard.writeText(JSON.stringify(result.data, null, 2))}>
-                    Copy JSON
+                <div className="max-h-80 overflow-auto rounded-lg bg-gray-900 p-4">
+                  <pre className="text-sm text-gray-100">
+                    {JSON.stringify(singleResult.data, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Council result */}
+            {councilResult && (
+              <div className="space-y-6">
+                <div className="rounded-lg bg-gradient-to-r from-yellow-50 to-orange-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <Trophy className="h-8 w-8 text-yellow-500" />
+                    <div>
+                      <p className="font-semibold text-gray-900">Winner</p>
+                      <p className="text-lg font-bold text-yellow-700">
+                        {getProviderName(councilResult.winner.provider)}
+                      </p>
+                    </div>
+                    <Badge className={`ml-auto ${getProviderColor(councilResult.winner.provider)} text-white`}>
+                      v{councilResult.winner.version}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button variant={selectedProposal === 'winner' ? 'default' : 'outline'} size="sm" onClick={() => setSelectedProposal('winner')}>
+                    <Trophy className="mr-1 h-3 w-3" />Winner
                   </Button>
-                  <Button variant="outline">Generate PDF</Button>
-                  <Button>Save as Product</Button>
+                  {councilResult.runnerUp && (
+                    <Button variant={selectedProposal === 'runnerUp' ? 'default' : 'outline'} size="sm" onClick={() => setSelectedProposal('runnerUp')}>
+                      <Medal className="mr-1 h-3 w-3" />Runner-up
+                    </Button>
+                  )}
+                  {councilResult.allProposals
+                    .filter(p => p.provider !== councilResult.winner.provider && p.provider !== councilResult.runnerUp?.provider)
+                    .map(p => (
+                      <Button key={p.provider} variant={selectedProposal === p.provider ? 'default' : 'outline'} size="sm" onClick={() => setSelectedProposal(p.provider)}>
+                        {getProviderName(p.provider)}
+                      </Button>
+                    ))}
+                </div>
+
+                <div className="max-h-64 overflow-auto rounded-lg bg-gray-900 p-4">
+                  <pre className="text-sm text-gray-100">
+                    {JSON.stringify(getCurrentContent(), null, 2)}
+                  </pre>
+                </div>
+
+                <div>
+                  <h4 className="mb-2 font-semibold text-gray-900">Votes</h4>
+                  <div className="space-y-2">
+                    {councilResult.votes.map((vote, i) => (
+                      <div key={i} className="rounded-lg bg-gray-50 p-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{getProviderName(vote.voter)}</Badge>
+                          <span className="text-gray-500">voted for</span>
+                          <Badge className={`${getProviderColor(vote.votedFor)} text-white`}>
+                            {getProviderName(vote.votedFor)}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-gray-600">{vote.reasoning}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Product image (shared) */}
+            {hasResult && (
+              <div className="mt-6 space-y-4">
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-900">Product Image</h4>
+                    <button
+                      onClick={generateImage}
+                      disabled={imageLoading}
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${imageLoading ? 'animate-spin' : ''}`} />
+                      {imageLoading ? 'Generating...' : 'Regenerate'}
+                    </button>
+                  </div>
+                  {imageLoading && !productImage && (
+                    <div className="flex h-48 items-center justify-center rounded-lg bg-gray-50">
+                      <div className="text-center text-gray-400">
+                        <ImageIcon className="mx-auto mb-2 h-8 w-8 animate-pulse" />
+                        <p className="text-sm">Generating product image...</p>
+                      </div>
+                    </div>
+                  )}
+                  {productImage && (
+                    <div className="relative overflow-hidden rounded-lg">
+                      <img src={productImage} alt="Generated product image" className="w-full rounded-lg object-cover" />
+                      {imageLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/70">
+                          <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {imageError && <p className="text-xs text-red-500">{imageError}</p>}
+                </div>
+
+                {/* Actions */}
+                <div className="space-y-2">
+                  {saveStatus && (
+                    <div className={`rounded-lg px-3 py-2 text-sm ${saveStatus.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                      {saveStatus.message}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    {councilResult && (
+                      <span className="text-sm text-gray-500">
+                        Total time: {(councilResult.totalTimeMs / 1000).toFixed(1)}s
+                      </span>
+                    )}
+                    <div className="ml-auto flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleSaveAsProduct} disabled={saving}>
+                        <Save className="mr-1 h-3 w-3" />
+                        {saving ? 'Sparar...' : 'Save as Product'}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={pdfLoading}>
+                        <FileDown className="mr-1 h-3 w-3" />
+                        {pdfLoading ? 'Genererar...' : 'Generate PDF'}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
