@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { renderToBuffer } from '@react-pdf/renderer';
+import React from 'react';
+import { TreasureHuntPDF } from '@/lib/pdf/treasure-hunt-template';
+import { QuizPDF } from '@/lib/pdf/quiz-template';
+import type { DocumentProps } from '@react-pdf/renderer';
+import type { TreasureHuntContent, QuizContent } from '@/types';
 
 function slugify(text: string): string {
   return text
@@ -9,6 +15,30 @@ function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
+}
+
+async function generatePdfBuffer(
+  content: unknown,
+  type: string
+): Promise<Buffer | null> {
+  let element: React.ReactElement<DocumentProps> | null = null;
+
+  switch (type) {
+    case 'treasure_hunt':
+      element = React.createElement(TreasureHuntPDF, {
+        content: content as TreasureHuntContent,
+      }) as React.ReactElement<DocumentProps>;
+      break;
+    case 'quiz':
+      element = React.createElement(QuizPDF, {
+        content: content as QuizContent,
+      }) as React.ReactElement<DocumentProps>;
+      break;
+    default:
+      return null;
+  }
+
+  return (await renderToBuffer(element)) as Buffer;
 }
 
 export async function POST(request: NextRequest) {
@@ -24,7 +54,14 @@ export async function POST(request: NextRequest) {
     const title: string = content.title || theme || 'Untitled';
     const slug = slugify(title) + '-' + Date.now().toString(36);
 
-    // Upload image to Supabase Storage if provided
+    // Ensure bucket exists
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some((b) => b.id === 'products');
+    if (!bucketExists) {
+      await supabase.storage.createBucket('products', { public: true, fileSizeLimit: 52428800 });
+    }
+
+    // Upload thumbnail image if provided
     let thumbnailUrl: string | null = null;
     if (imageDataUrl) {
       const matches = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -34,13 +71,6 @@ export async function POST(request: NextRequest) {
         const buffer = Buffer.from(base64Data, 'base64');
         const ext = mimeType.split('/')[1] || 'png';
         const fileName = `thumbnails/${slug}.${ext}`;
-
-        // Ensure bucket exists
-        const { data: buckets } = await supabase.storage.listBuckets();
-        const bucketExists = buckets?.some((b) => b.id === 'products');
-        if (!bucketExists) {
-          await supabase.storage.createBucket('products', { public: true, fileSizeLimit: 10485760 });
-        }
 
         const { error: uploadError } = await supabase.storage
           .from('products')
@@ -53,6 +83,27 @@ export async function POST(request: NextRequest) {
           console.warn('[Save Product] Image upload failed:', uploadError.message);
         }
       }
+    }
+
+    // Generate and upload PDF
+    let fileUrl: string | null = null;
+    try {
+      const pdfBuffer = await generatePdfBuffer(content, type);
+      if (pdfBuffer) {
+        const pdfFileName = `files/${slug}.pdf`;
+        const { error: pdfUploadError } = await supabase.storage
+          .from('products')
+          .upload(pdfFileName, pdfBuffer, { contentType: 'application/pdf', upsert: true });
+
+        if (!pdfUploadError) {
+          const { data: pdfUrlData } = supabase.storage.from('products').getPublicUrl(pdfFileName);
+          fileUrl = pdfUrlData.publicUrl;
+        } else {
+          console.warn('[Save Product] PDF upload failed:', pdfUploadError.message);
+        }
+      }
+    } catch (pdfErr) {
+      console.warn('[Save Product] PDF generation failed:', pdfErr);
     }
 
     const localizedTitle = { en: title, sv: title };
@@ -72,6 +123,7 @@ export async function POST(request: NextRequest) {
         is_free: true,
         is_ai_generated: true,
         thumbnail_url: thumbnailUrl,
+        file_url: fileUrl,
         tags: [theme, language].filter(Boolean),
         ai_generation_data: {
           provider: 'council',
@@ -88,7 +140,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data, pdfSaved: !!fileUrl });
   } catch (err) {
     console.error('[Save Product] Error:', err);
     return NextResponse.json(

@@ -52,6 +52,7 @@ export interface Product {
   meta_title: LocalizedString | null;
   meta_description: LocalizedString | null;
   tags: string[];
+  review_notes: string | null;
   created_at: string;
   updated_at: string;
   category?: Category;
