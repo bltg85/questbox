@@ -184,8 +184,8 @@ export function getAvailableProviders(): AIProvider[] {
 export async function generateProductImage(prompt: string): Promise<string | null> {
   if (!google) return null;
 
-  const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-3-pro-image-preview'; // Nano Banana Pro
-  const fallbackModel = 'gemini-2.5-flash-image'; // Nano Banana 2 (faster, fallback)
+  const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview'; // Nano Banana 2 (fast)
+  const fallbackModel = 'gemini-3-pro-image-preview'; // Nano Banana Pro (slower, fallback)
 
   const tryGenerate = async (modelName: string): Promise<string | null> => {
     const model = google.getGenerativeModel({ model: modelName });
