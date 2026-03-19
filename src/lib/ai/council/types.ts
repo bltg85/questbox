@@ -1,4 +1,4 @@
-import type { AIProvider, ProductType, AgeGroup, DifficultyLevel, Locale } from '@/types';
+import type { AIProvider, ProductType, AgeGroup, DifficultyLevel, Locale, QuizSubtype } from '@/types';
 
 export interface CouncilInput {
   type: ProductType;
@@ -12,6 +12,8 @@ export interface CouncilInput {
   numberOfClues?: number;
   numberOfQuestions?: number;
   location?: string;
+  // Quiz-specific
+  quizSubtype?: QuizSubtype;
 }
 
 export interface GeneratedProposal {

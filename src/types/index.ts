@@ -96,6 +96,8 @@ export interface TreasureHuntContent {
 }
 
 // Quiz specific
+export type QuizSubtype = 'standard' | 'music';
+
 export interface QuizQuestion {
   number: number;
   question: string;
@@ -104,11 +106,27 @@ export interface QuizQuestion {
   explanation?: string;
 }
 
+export interface SpotifyTrack {
+  title: string;
+  artist: string;
+  year?: number;
+  note?: string;
+}
+
+export interface SpotifyPlaylistSuggestion {
+  name: string;
+  description: string;
+  tracks: SpotifyTrack[];
+  search_term?: string;
+}
+
 export interface QuizContent {
   title: string;
   introduction: string;
   questions: QuizQuestion[];
   scoring_guide: string;
+  quiz_subtype?: QuizSubtype;
+  spotify_playlist?: SpotifyPlaylistSuggestion;
 }
 
 // Diploma specific

@@ -128,6 +128,79 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#64748b',
   },
+  // Spotify playlist styles
+  playlistSection: {
+    marginTop: 30,
+    padding: 15,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+    border: '1 solid #86efac',
+  },
+  playlistHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  playlistIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  playlistTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#15803d',
+  },
+  playlistName: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#166534',
+    marginBottom: 4,
+  },
+  playlistDescription: {
+    fontSize: 10,
+    color: '#4ade80',
+    marginBottom: 12,
+    color: '#15803d',
+  },
+  playlistSearchTerm: {
+    fontSize: 10,
+    color: '#166534',
+    marginBottom: 10,
+    fontStyle: 'italic',
+  },
+  trackRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+    paddingBottom: 6,
+    borderBottom: '1 solid #bbf7d0',
+  },
+  trackNumber: {
+    fontSize: 9,
+    color: '#86efac',
+    width: 18,
+    marginTop: 1,
+  },
+  trackInfo: {
+    flex: 1,
+  },
+  trackTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#166534',
+  },
+  trackArtist: {
+    fontSize: 9,
+    color: '#15803d',
+  },
+  trackYear: {
+    fontSize: 9,
+    color: '#4ade80',
+    color: '#15803d',
+    width: 35,
+    textAlign: 'right',
+    marginTop: 1,
+  },
   footer: {
     position: 'absolute',
     bottom: 20,
@@ -146,6 +219,7 @@ interface QuizPDFProps {
 
 export function QuizPDF({ content, showAnswers = false }: QuizPDFProps) {
   const optionLetters = ['A', 'B', 'C', 'D'];
+  const isMusicQuiz = content.quiz_subtype === 'music';
 
   // Split questions into pages (4 questions per page)
   const questionsPerPage = 4;
@@ -163,7 +237,9 @@ export function QuizPDF({ content, showAnswers = false }: QuizPDFProps) {
             <>
               <View style={styles.header}>
                 <Text style={styles.title}>{content.title}</Text>
-                <Text style={styles.subtitle}>Quiz Challenge</Text>
+                <Text style={styles.subtitle}>
+                  {isMusicQuiz ? 'Music Quiz' : 'Quiz Challenge'}
+                </Text>
               </View>
 
               <Text style={styles.introduction}>{content.introduction}</Text>
@@ -230,6 +306,71 @@ export function QuizPDF({ content, showAnswers = false }: QuizPDFProps) {
                 ))}
             </View>
           )}
+
+          {/* Spotify Playlist Section */}
+          {isMusicQuiz && content.spotify_playlist && (
+            <View style={styles.playlistSection}>
+              <View style={styles.playlistHeader}>
+                <Text style={styles.playlistIcon}>♫</Text>
+                <Text style={styles.playlistTitle}>Spotify Playlist</Text>
+              </View>
+              <Text style={styles.playlistName}>{content.spotify_playlist.name}</Text>
+              <Text style={styles.playlistDescription}>{content.spotify_playlist.description}</Text>
+              {content.spotify_playlist.search_term && (
+                <Text style={styles.playlistSearchTerm}>
+                  Sök på Spotify: "{content.spotify_playlist.search_term}"
+                </Text>
+              )}
+              {content.spotify_playlist.tracks.map((track, i) => (
+                <View key={i} style={styles.trackRow}>
+                  <Text style={styles.trackNumber}>{i + 1}.</Text>
+                  <View style={styles.trackInfo}>
+                    <Text style={styles.trackTitle}>{track.title}</Text>
+                    <Text style={styles.trackArtist}>{track.artist}</Text>
+                  </View>
+                  {track.year && (
+                    <Text style={styles.trackYear}>{track.year}</Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
+          <Text style={styles.footer}>Created with QuestBox • questbox.io</Text>
+        </Page>
+      )}
+
+      {/* Standalone Spotify Playlist Page (for music quizzes without answer key) */}
+      {isMusicQuiz && !showAnswers && content.spotify_playlist && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.header}>
+            <Text style={styles.title}>♫ Spotify Playlist</Text>
+          </View>
+
+          <View style={styles.playlistSection}>
+            <Text style={styles.playlistName}>{content.spotify_playlist.name}</Text>
+            <Text style={styles.playlistDescription}>{content.spotify_playlist.description}</Text>
+            {content.spotify_playlist.search_term && (
+              <Text style={styles.playlistSearchTerm}>
+                Sök på Spotify: "{content.spotify_playlist.search_term}"
+              </Text>
+            )}
+            {content.spotify_playlist.tracks.map((track, i) => (
+              <View key={i} style={styles.trackRow}>
+                <Text style={styles.trackNumber}>{i + 1}.</Text>
+                <View style={styles.trackInfo}>
+                  <Text style={styles.trackTitle}>{track.title}</Text>
+                  <Text style={styles.trackArtist}>{track.artist}</Text>
+                  {track.note && (
+                    <Text style={{ fontSize: 9, color: '#15803d', fontStyle: 'italic' }}>{track.note}</Text>
+                  )}
+                </View>
+                {track.year && (
+                  <Text style={styles.trackYear}>{track.year}</Text>
+                )}
+              </View>
+            ))}
+          </View>
 
           <Text style={styles.footer}>Created with QuestBox • questbox.io</Text>
         </Page>

@@ -60,6 +60,58 @@ QUALITY GUIDELINES:
 ONLY output valid JSON, nothing else.`;
   }
 
+  if (input.type === 'quiz' && input.quizSubtype === 'music') {
+    return `You are a music expert and quiz master known for creating engaging music trivia quizzes with perfectly curated playlists.
+
+REQUIREMENTS:
+- Music theme/genre/era: ${input.theme}
+- Target age: ${ageDescriptions[input.ageGroup]}
+- Difficulty: ${difficultyDescriptions[input.difficulty]}
+- Number of questions: ${input.numberOfQuestions || 10}
+
+${languageInstructions}
+
+OUTPUT FORMAT (JSON):
+{
+  "title": "Catchy music quiz title",
+  "introduction": "Brief, exciting intro about this music quiz",
+  "questions": [
+    {
+      "number": 1,
+      "question": "Music trivia question (about artists, songs, lyrics, years, albums, etc.)",
+      "options": ["A", "B", "C", "D"],
+      "correct_answer": 0,
+      "explanation": "Why this is correct, with an interesting music fact"
+    }
+  ],
+  "scoring_guide": "How to interpret scores",
+  "quiz_subtype": "music",
+  "spotify_playlist": {
+    "name": "Playlist name that fits the theme",
+    "description": "Short description of the playlist",
+    "tracks": [
+      {
+        "title": "Song title",
+        "artist": "Artist name",
+        "year": 1985,
+        "note": "Why this song fits (optional)"
+      }
+    ],
+    "search_term": "Search term to find this playlist on Spotify"
+  }
+}
+
+QUALITY GUIDELINES:
+- Questions should cover a mix of artists, songs, lyrics, years, albums, and music history
+- Include songs from the spotify_playlist in some questions to create a fun connection
+- The playlist should have ${Math.max(10, (input.numberOfQuestions || 10) + 2)} tracks that fit the theme
+- Wrong answers should be plausible artists/songs from the same era
+- Build from easier to harder questions
+- Make it a complete music experience - the playlist enhances the quiz!
+
+ONLY output valid JSON, nothing else.`;
+  }
+
   if (input.type === 'quiz') {
     return `You are an expert quiz master known for creating engaging, educational quizzes that are both fun and informative.
 

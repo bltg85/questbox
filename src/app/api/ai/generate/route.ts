@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generateTreasureHunt, generateQuiz, generateDiploma } from '@/lib/ai';
-import type { AgeGroup, DifficultyLevel, Locale, AIProvider } from '@/types';
+import type { AgeGroup, DifficultyLevel, Locale, AIProvider, QuizSubtype } from '@/types';
 
 const GenerateRequestSchema = z.object({
   type: z.enum(['treasure_hunt', 'quiz', 'diploma']),
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
           difficulty: (params.difficulty as DifficultyLevel) || 'medium',
           language: (params.language as Locale) || 'en',
           provider: generatorProvider,
+          quizSubtype: (params.quizSubtype as QuizSubtype) || 'standard',
         });
         break;
 

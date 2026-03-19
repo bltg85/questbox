@@ -16,6 +16,7 @@ const CouncilRequestSchema = z.object({
   numberOfClues: z.number().optional(),
   numberOfQuestions: z.number().optional(),
   location: z.string().optional(),
+  quizSubtype: z.enum(['standard', 'music']).optional(),
 });
 
 export async function POST(request: NextRequest) {

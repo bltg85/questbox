@@ -81,6 +81,7 @@ export default function AIToolsPage() {
   const [numberOfClues, setNumberOfClues] = useState(5);
   const [numberOfQuestions, setNumberOfQuestions] = useState(10);
   const [location, setLocation] = useState('indoor');
+  const [quizSubtype, setQuizSubtype] = useState('standard');
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   const [mode, setMode] = useState<Mode>('economy');
   const [singleProvider, setSingleProvider] = useState('openai');
@@ -195,6 +196,7 @@ export default function AIToolsPage() {
         } else if (type === 'quiz') {
           params.topic = theme;
           params.numberOfQuestions = numberOfQuestions;
+          params.quizSubtype = quizSubtype;
         }
 
         const res = await fetch('/api/ai/generate', {
@@ -244,6 +246,7 @@ export default function AIToolsPage() {
           numberOfClues: type === 'treasure_hunt' ? numberOfClues : undefined,
           numberOfQuestions: type === 'quiz' ? numberOfQuestions : undefined,
           location: type === 'treasure_hunt' ? location : undefined,
+          quizSubtype: type === 'quiz' ? quizSubtype : undefined,
           additionalInstructions: additionalInstructions || undefined,
         }),
       });
@@ -333,8 +336,12 @@ export default function AIToolsPage() {
             />
 
             <Input
-              label="Theme"
-              placeholder="e.g., Pirates, Dinosaurs, Space, Swedish History"
+              label={type === 'quiz' && quizSubtype === 'music' ? 'Genre / Era / Artist' : 'Theme'}
+              placeholder={
+                type === 'quiz' && quizSubtype === 'music'
+                  ? 'e.g., 90s Pop, ABBA, Swedish Music, Classic Rock'
+                  : 'e.g., Pirates, Dinosaurs, Space, Swedish History'
+              }
               value={theme}
               onChange={(e) => setTheme(e.target.value)}
             />
@@ -398,14 +405,25 @@ export default function AIToolsPage() {
             )}
 
             {type === 'quiz' && (
-              <Input
-                label="Number of Questions"
-                type="number"
-                min={5}
-                max={30}
-                value={numberOfQuestions}
-                onChange={(e) => setNumberOfQuestions(parseInt(e.target.value))}
-              />
+              <>
+                <Select
+                  label="Quiz Type"
+                  options={[
+                    { value: 'standard', label: 'Standard Quiz' },
+                    { value: 'music', label: '🎵 Music Quiz (with Spotify playlist)' },
+                  ]}
+                  value={quizSubtype}
+                  onChange={(e) => setQuizSubtype(e.target.value)}
+                />
+                <Input
+                  label="Number of Questions"
+                  type="number"
+                  min={5}
+                  max={30}
+                  value={numberOfQuestions}
+                  onChange={(e) => setNumberOfQuestions(parseInt(e.target.value))}
+                />
+              </>
             )}
 
             {isCouncilMode && (
