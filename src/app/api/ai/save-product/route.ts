@@ -35,6 +35,13 @@ export async function POST(request: NextRequest) {
         const ext = mimeType.split('/')[1] || 'png';
         const fileName = `thumbnails/${slug}.${ext}`;
 
+        // Ensure bucket exists
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const bucketExists = buckets?.some((b) => b.id === 'products');
+        if (!bucketExists) {
+          await supabase.storage.createBucket('products', { public: true, fileSizeLimit: 10485760 });
+        }
+
         const { error: uploadError } = await supabase.storage
           .from('products')
           .upload(fileName, buffer, { contentType: mimeType, upsert: true });

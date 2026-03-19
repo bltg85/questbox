@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input, Textarea, Select, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import { generateSlug } from '@/lib/utils';
 import type { Product, Category, ProductFormData } from '@/types';
+import { ImageIcon, Upload, Sparkles } from 'lucide-react';
 
 interface ProductFormProps {
   product?: Product;
@@ -16,6 +17,10 @@ export function ProductForm({ product }: ProductFormProps) {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [imagePreview, setImagePreview] = useState<string | null>(product?.thumbnail_url || null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: product?.name || { en: '', sv: '' },
@@ -34,6 +39,7 @@ export function ProductForm({ product }: ProductFormProps) {
     status: product?.status || 'draft',
     is_featured: product?.is_featured || false,
     tags: product?.tags || [],
+    thumbnail_url: product?.thumbnail_url || null,
   });
 
   useEffect(() => {
@@ -43,6 +49,63 @@ export function ProductForm({ product }: ProductFormProps) {
     }
     fetchCategories();
   }, []);
+
+  const uploadImageDataUrl = async (dataUrl: string) => {
+    const slug = formData.slug.en || formData.slug.sv || 'product';
+    setImageUploading(true);
+    setImageError('');
+    try {
+      const res = await fetch('/api/products/upload-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageDataUrl: dataUrl, slug }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
+      setFormData((prev) => ({ ...prev, thumbnail_url: data.thumbnailUrl }));
+      setImagePreview(data.thumbnailUrl);
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setImagePreview(dataUrl);
+      await uploadImageDataUrl(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGenerateAiImage = async () => {
+    const theme = formData.name.en || formData.name.sv || 'product';
+    setImageUploading(true);
+    setImageError('');
+    try {
+      const res = await fetch('/api/ai/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: formData.product_type,
+          theme,
+          ageGroup: formData.age_group,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Generation failed');
+      setImagePreview(data.imageDataUrl);
+      await uploadImageDataUrl(data.imageDataUrl);
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Generation failed');
+      setImageUploading(false);
+    }
+  };
 
   const handleNameChange = (locale: 'en' | 'sv', value: string) => {
     setFormData((prev) => ({
@@ -202,6 +265,70 @@ export function ProductForm({ product }: ProductFormProps) {
               rows={5}
               required
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Product Image */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Product Image</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-4">
+            {/* Preview */}
+            <div className="h-40 w-40 flex-shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+              {imagePreview ? (
+                <img src={imagePreview} alt="Thumbnail" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-gray-300">
+                  <ImageIcon className="h-10 w-10" />
+                </div>
+              )}
+            </div>
+            {/* Controls */}
+            <div className="flex flex-col justify-center gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={imageUploading}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Image
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateAiImage}
+                disabled={imageUploading}
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                {imageUploading ? 'Generating...' : 'Generate with AI'}
+              </Button>
+              {formData.thumbnail_url && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImagePreview(null);
+                    setFormData((prev) => ({ ...prev, thumbnail_url: null }));
+                  }}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Remove image
+                </button>
+              )}
+              {imageError && <p className="text-xs text-red-500">{imageError}</p>}
+            </div>
           </div>
         </CardContent>
       </Card>

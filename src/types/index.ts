@@ -186,6 +186,7 @@ export interface ProductFormData {
   status: ProductStatus;
   is_featured: boolean;
   tags: string[];
+  thumbnail_url: string | null;
 }
 
 export interface CategoryFormData {
