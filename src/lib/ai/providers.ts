@@ -145,23 +145,36 @@ export function getAvailableProviders(): AIProvider[] {
 export async function generateProductImage(prompt: string): Promise<string | null> {
   if (!google) return null;
 
-  const modelName = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-3-pro-image-preview'; // Nano Banana Pro
-  const model = google.getGenerativeModel({ model: modelName });
+  const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-3-pro-image-preview'; // Nano Banana Pro
+  const fallbackModel = 'gemini-2.5-flash-image'; // Nano Banana 2
 
-  const response = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: {
-      responseModalities: ['IMAGE'],
-    } as any,
-  });
+  const tryGenerate = async (modelName: string): Promise<string | null> => {
+    const model = google.getGenerativeModel({ model: modelName });
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseModalities: ['IMAGE'],
+      } as any,
+    });
 
-  const imagePart = response.response.candidates?.[0]?.content?.parts?.find(
-    (part: any) => part.inlineData
-  );
+    const imagePart = response.response.candidates?.[0]?.content?.parts?.find(
+      (part: any) => part.inlineData
+    );
 
-  if (imagePart?.inlineData) {
-    return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+    if (imagePart?.inlineData) {
+      return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+    }
+    return null;
+  };
+
+  try {
+    return await tryGenerate(primaryModel);
+  } catch (error: any) {
+    const status = error?.status ?? error?.httpStatus;
+    if (status === 503 || status === 429) {
+      console.warn(`[Image] ${primaryModel} unavailable (${status}), falling back to ${fallbackModel}`);
+      return await tryGenerate(fallbackModel);
+    }
+    throw error;
   }
-
-  return null;
 }
