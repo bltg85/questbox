@@ -94,9 +94,15 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-gray-200 pt-8">
-          <p className="text-center text-sm text-gray-500">
+        <div className="mt-12 border-t border-gray-200 pt-8 flex items-center justify-between">
+          <p className="text-sm text-gray-500">
             {t('footer.copyright', { year: currentYear })}
+          </p>
+          <p className="text-xs text-gray-400">
+            v{process.env.NEXT_PUBLIC_APP_VERSION}
+            {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA && (
+              <span className="ml-1">({process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.slice(0, 7)})</span>
+            )}
           </p>
         </div>
       </div>
