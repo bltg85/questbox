@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { AIProvider } from '@/types';
+import { logUsage, logImageUsage } from './usage';
 
 // Initialize clients
 const openai = process.env.OPENAI_API_KEY
@@ -21,6 +22,8 @@ export interface AIGenerationRequest {
   userPrompt: string;
   provider?: AIProvider;
   modelTier?: 'economy' | 'premium';
+  operation?: string; // 'generate', 'feedback', 'iterate', 'vote', 'single'
+  context?: string;   // 'council', 'generate', 'generate-image'
 }
 
 export interface AIGenerationResponse {
@@ -34,14 +37,16 @@ export async function generateWithAI({
   userPrompt,
   provider = 'openai',
   modelTier = 'premium',
+  operation = 'single',
+  context = 'generate',
 }: AIGenerationRequest): Promise<AIGenerationResponse> {
   switch (provider) {
     case 'openai':
-      return generateWithOpenAI(systemPrompt, userPrompt, modelTier);
+      return generateWithOpenAI(systemPrompt, userPrompt, modelTier, operation, context);
     case 'anthropic':
-      return generateWithAnthropic(systemPrompt, userPrompt, modelTier);
+      return generateWithAnthropic(systemPrompt, userPrompt, modelTier, operation, context);
     case 'google':
-      return generateWithGoogle(systemPrompt, userPrompt, modelTier);
+      return generateWithGoogle(systemPrompt, userPrompt, modelTier, operation, context);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
@@ -50,13 +55,14 @@ export async function generateWithAI({
 async function generateWithOpenAI(
   systemPrompt: string,
   userPrompt: string,
-  modelTier: 'economy' | 'premium' = 'premium'
+  modelTier: 'economy' | 'premium' = 'premium',
+  operation = 'single',
+  context = 'generate'
 ): Promise<AIGenerationResponse> {
   if (!openai) {
     throw new Error('OpenAI not configured');
   }
 
-  // Model configurable via env var, otherwise based on tier
   const defaultModel = modelTier === 'economy' ? 'gpt-5-mini' : 'gpt-5.2';
   const model = process.env.OPENAI_MODEL || defaultModel;
 
@@ -66,6 +72,16 @@ async function generateWithOpenAI(
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
+  });
+
+  // Log usage (fire-and-forget)
+  logUsage({
+    provider: 'openai',
+    model,
+    operation,
+    context,
+    promptTokens: response.usage?.prompt_tokens ?? 0,
+    completionTokens: response.usage?.completion_tokens ?? 0,
   });
 
   return {
@@ -78,13 +94,14 @@ async function generateWithOpenAI(
 async function generateWithAnthropic(
   systemPrompt: string,
   userPrompt: string,
-  modelTier: 'economy' | 'premium' = 'premium'
+  modelTier: 'economy' | 'premium' = 'premium',
+  operation = 'single',
+  context = 'generate'
 ): Promise<AIGenerationResponse> {
   if (!anthropic) {
     throw new Error('Anthropic not configured');
   }
 
-  // Model configurable via env var, otherwise based on tier
   const defaultModel = modelTier === 'economy' ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
   const model = process.env.ANTHROPIC_MODEL || defaultModel;
 
@@ -93,6 +110,16 @@ async function generateWithAnthropic(
     max_tokens: 4096,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
+  });
+
+  // Log usage (fire-and-forget)
+  logUsage({
+    provider: 'anthropic',
+    model,
+    operation,
+    context,
+    promptTokens: response.usage.input_tokens,
+    completionTokens: response.usage.output_tokens,
   });
 
   const textContent = response.content.find((block) => block.type === 'text');
@@ -106,13 +133,14 @@ async function generateWithAnthropic(
 async function generateWithGoogle(
   systemPrompt: string,
   userPrompt: string,
-  modelTier: 'economy' | 'premium' = 'premium'
+  modelTier: 'economy' | 'premium' = 'premium',
+  operation = 'single',
+  context = 'generate'
 ): Promise<AIGenerationResponse> {
   if (!google) {
     throw new Error('Google AI not configured');
   }
 
-  // Model configurable via env var, otherwise based on tier
   const defaultModel = modelTier === 'economy' ? 'gemini-2.5-flash' : 'gemini-2.5-pro';
   const modelName = process.env.GOOGLE_AI_MODEL || defaultModel;
   const model = google.getGenerativeModel({ model: modelName });
@@ -124,6 +152,17 @@ async function generateWithGoogle(
         parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
       },
     ],
+  });
+
+  // Log usage (fire-and-forget)
+  const meta = response.response.usageMetadata;
+  logUsage({
+    provider: 'google',
+    model: modelName,
+    operation,
+    context,
+    promptTokens: meta?.promptTokenCount ?? 0,
+    completionTokens: meta?.candidatesTokenCount ?? 0,
   });
 
   return {
@@ -168,12 +207,16 @@ export async function generateProductImage(prompt: string): Promise<string | nul
   };
 
   try {
-    return await tryGenerate(primaryModel);
+    const result = await tryGenerate(primaryModel);
+    if (result) logImageUsage({ model: primaryModel, context: 'generate-image' });
+    return result;
   } catch (error: any) {
     const status = error?.status ?? error?.httpStatus;
     if (status === 503 || status === 429) {
       console.warn(`[Image] ${primaryModel} unavailable (${status}), falling back to ${fallbackModel}`);
-      return await tryGenerate(fallbackModel);
+      const result = await tryGenerate(fallbackModel);
+      if (result) logImageUsage({ model: fallbackModel, context: 'generate-image' });
+      return result;
     }
     throw error;
   }

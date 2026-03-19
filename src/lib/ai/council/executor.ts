@@ -46,6 +46,8 @@ export async function runCouncil(
         userPrompt: generationPrompt,
         provider,
         modelTier: input.modelTier,
+        operation: 'generate',
+        context: 'council',
       }).then(response => ({ provider, content: parseJSON(response.content) }))
     )
   );
@@ -78,6 +80,8 @@ export async function runCouncil(
         userPrompt: `Review this ${input.type}:\n\n${JSON.stringify(target.content, null, 2)}`,
         provider: reviewer.provider,
         modelTier: input.modelTier,
+        operation: 'feedback',
+        context: 'council',
       }).then(response => {
         const feedback = parseJSON(response.content);
         return {
@@ -117,6 +121,8 @@ export async function runCouncil(
         userPrompt: `Your original ${input.type}:\n${JSON.stringify(proposal.content, null, 2)}\n\nFeedback received:\n${feedbackSummary}\n\nPlease improve your content based on this feedback.`,
         provider: proposal.provider,
         modelTier: input.modelTier,
+        operation: 'iterate',
+        context: 'council',
       }).then(response => {
         const improved = parseJSON(response.content);
         return {
@@ -154,6 +160,8 @@ export async function runCouncil(
         userPrompt: `You are ${voter.provider}. Vote for the BEST version (not your own).\n\nOptions:\n${proposalsToJudge}`,
         provider: voter.provider,
         modelTier: input.modelTier,
+        operation: 'vote',
+        context: 'council',
       }).then(response => {
         const voteData = parseJSON(response.content);
         let votedFor = voteData.votedFor?.toLowerCase();

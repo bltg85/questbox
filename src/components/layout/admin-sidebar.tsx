@@ -11,6 +11,7 @@ import {
   Wand2,
   Settings,
   LogOut,
+  CircleDollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -21,6 +22,7 @@ const navigation = [
   { name: 'Products', href: '/admin/products', icon: Package },
   { name: 'Categories', href: '/admin/categories', icon: FolderTree },
   { name: 'AI Tools', href: '/admin/ai-tools', icon: Wand2 },
+  { name: 'AI Costs', href: '/admin/ai-costs', icon: CircleDollarSign },
   { name: 'Subscribers', href: '/admin/subscribers', icon: Users },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
