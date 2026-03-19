@@ -66,7 +66,6 @@ async function generateWithOpenAI(
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    temperature: 0.7,
   });
 
   return {
@@ -146,7 +145,7 @@ export function getAvailableProviders(): AIProvider[] {
 export async function generateProductImage(prompt: string): Promise<string | null> {
   if (!google) return null;
 
-  const modelName = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-2.0-flash-exp';
+  const modelName = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-2.0-flash-preview-image-generation';
   const model = google.getGenerativeModel({ model: modelName });
 
   const response = await model.generateContent({
