@@ -158,9 +158,8 @@ const styles = StyleSheet.create({
   },
   playlistDescription: {
     fontSize: 10,
-    color: '#4ade80',
-    marginBottom: 12,
     color: '#15803d',
+    marginBottom: 12,
   },
   playlistSearchTerm: {
     fontSize: 10,
@@ -195,7 +194,6 @@ const styles = StyleSheet.create({
   },
   trackYear: {
     fontSize: 9,
-    color: '#4ade80',
     color: '#15803d',
     width: 35,
     textAlign: 'right',
