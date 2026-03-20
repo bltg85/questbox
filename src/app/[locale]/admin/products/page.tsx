@@ -1,47 +1,122 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
 import { Button, Badge } from '@/components/ui';
-import { Plus, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Edit, Eye, Globe } from 'lucide-react';
 import { getLocalizedValue } from '@/lib/utils';
 import { DeleteProductButton } from './delete-button';
 
-export default async function AdminProductsPage() {
-  const supabase = await createClient();
+interface Product {
+  id: string;
+  name: unknown;
+  slug: unknown;
+  status: string;
+  product_type: string;
+  price_sek: number;
+  is_free: boolean;
+  is_ai_generated: boolean;
+  download_count: number;
+  thumbnail_url: string | null;
+}
 
-  const { data: products } = await supabase
-    .from('products')
-    .select('*, category:categories(*)')
-    .order('created_at', { ascending: false });
+export default function AdminProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [publishing, setPublishing] = useState(false);
+
+  const loadProducts = useCallback(async () => {
+    const res = await fetch('/api/products');
+    if (res.ok) {
+      const data = await res.json();
+      setProducts(data.data ?? []);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  const toggleAll = (checked: boolean) => {
+    if (checked) {
+      setSelected(new Set(products.map((p) => p.id)));
+    } else {
+      setSelected(new Set());
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkPublish = async () => {
+    if (selected.size === 0) return;
+    setPublishing(true);
+    try {
+      const res = await fetch('/api/products/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selected), status: 'published' }),
+      });
+      if (res.ok) {
+        setSelected(new Set());
+        await loadProducts();
+      }
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'published':
-        return <Badge variant="success">Published</Badge>;
-      case 'draft':
-        return <Badge variant="warning">Draft</Badge>;
-      case 'archived':
-        return <Badge variant="secondary">Archived</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
+      case 'published': return <Badge variant="success">Published</Badge>;
+      case 'draft': return <Badge variant="warning">Draft</Badge>;
+      case 'archived': return <Badge variant="secondary">Archived</Badge>;
+      default: return <Badge>{status}</Badge>;
     }
   };
+
+  const allChecked = products.length > 0 && selected.size === products.length;
+  const someChecked = selected.size > 0 && !allChecked;
 
   return (
     <div>
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Products</h1>
-        <Link href="/admin/products/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Product
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          {selected.size > 0 && (
+            <Button onClick={bulkPublish} disabled={publishing} size="sm">
+              <Globe className="mr-2 h-4 w-4" />
+              {publishing ? 'Publishing...' : `Publish ${selected.size} selected`}
+            </Button>
+          )}
+          <Link href="/admin/products/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  ref={(el) => { if (el) el.indeterminate = someChecked; }}
+                  onChange={(e) => toggleAll(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                />
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Product
               </th>
@@ -60,8 +135,16 @@ export default async function AdminProductsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
-            {products?.map((product) => (
-              <tr key={product.id} className="hover:bg-gray-50">
+            {products.map((product) => (
+              <tr key={product.id} className={`hover:bg-gray-50 ${selected.has(product.id) ? 'bg-indigo-50' : ''}`}>
+                <td className="px-4 py-4">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(product.id)}
+                    onChange={() => toggleOne(product.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                  />
+                </td>
                 <td className="whitespace-nowrap px-6 py-4">
                   <div className="flex items-center">
                     <div className="h-10 w-10 flex-shrink-0 rounded-lg bg-gray-100">
@@ -120,14 +203,14 @@ export default async function AdminProductsPage() {
                         <Edit className="h-4 w-4" />
                       </Button>
                     </Link>
-                    <DeleteProductButton productId={product.id} />
+                    <DeleteProductButton productId={product.id} onDeleted={loadProducts} />
                   </div>
                 </td>
               </tr>
             ))}
-            {(!products || products.length === 0) && (
+            {products.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                   No products yet. Create your first product!
                 </td>
               </tr>
