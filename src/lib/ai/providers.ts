@@ -209,6 +209,7 @@ export async function generateProductImage(prompt: string): Promise<string | nul
   try {
     const result = await tryGenerate(primaryModel);
     if (result) {
+      console.log(`[Image] Success with primary model: ${primaryModel}`);
       logImageUsage({ model: primaryModel, context: 'generate-image' });
       return result;
     }
