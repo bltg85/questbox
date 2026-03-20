@@ -96,7 +96,7 @@ export default function AIToolsPage() {
 
   const isCouncilMode = mode === 'economy' || mode === 'premium';
 
-  const generateImage = async () => {
+  const generateImage = async (): Promise<string | null> => {
     setImageLoading(true);
     setImageError('');
     try {
@@ -111,10 +111,32 @@ export default function AIToolsPage() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Image generation failed');
       setProductImage(data.imageDataUrl);
+      return data.imageDataUrl as string;
     } catch (err) {
       setImageError(err instanceof Error ? err.message : 'Could not generate image');
+      return null;
     } finally {
       setImageLoading(false);
+    }
+  };
+
+  const autoSaveProduct = async (content: any, imageDataUrl: string | null) => {
+    if (!content) return;
+    setSaving(true);
+    setSaveStatus(null);
+    try {
+      const res = await fetch('/api/ai/save-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, type, theme, ageGroup, difficulty, language, imageDataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to save');
+      setSaveStatus({ ok: true, message: `Sparad som utkast! ID: ${data.data.id.slice(0, 8)}…` });
+    } catch (err) {
+      setSaveStatus({ ok: false, message: err instanceof Error ? err.message : 'Fel vid sparning' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -127,26 +149,6 @@ export default function AIToolsPage() {
     return singleResult?.data;
   };
 
-  const handleSaveAsProduct = async () => {
-    const content = getCurrentContent();
-    if (!content) return;
-    setSaving(true);
-    setSaveStatus(null);
-    try {
-      const res = await fetch('/api/ai/save-product', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, type, theme, ageGroup, difficulty, language, imageDataUrl: productImage }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to save');
-      setSaveStatus({ ok: true, message: `Sparad som utkast! ID: ${data.data.id.slice(0, 8)}…` });
-    } catch (err) {
-      setSaveStatus({ ok: false, message: err instanceof Error ? err.message : 'Fel vid sparning' });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleGeneratePDF = async () => {
     const content = getCurrentContent();
@@ -209,7 +211,9 @@ export default function AIToolsPage() {
         if (!res.ok) throw new Error(data.error || 'Generation failed');
         setGenerationTimeMs(Date.now() - startTime);
         setSingleResult(data);
-        if (generateImageEnabled) generateImage();
+        let imageUrl: string | null = null;
+        if (generateImageEnabled) imageUrl = await generateImage();
+        await autoSaveProduct(data.data, imageUrl);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -262,7 +266,9 @@ export default function AIToolsPage() {
       setGenerationTimeMs(Date.now() - startTime);
       setStage('complete');
       setProgress(100);
-      if (generateImageEnabled) generateImage();
+      let imageUrl: string | null = null;
+      if (generateImageEnabled) imageUrl = await generateImage();
+      await autoSaveProduct(data.data.winner?.content ?? null, imageUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setStage('');
@@ -665,22 +671,25 @@ export default function AIToolsPage() {
 
                 {/* Actions */}
                 <div className="space-y-2">
-                  {saveStatus && (
-                    <div className={`rounded-lg px-3 py-2 text-sm ${saveStatus.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                      {saveStatus.message}
-                    </div>
-                  )}
                   <div className="flex items-center justify-between">
-                    <div className="ml-auto flex gap-2">
-                      <Button variant="outline" size="sm" onClick={handleSaveAsProduct} disabled={saving}>
-                        <Save className="mr-1 h-3 w-3" />
-                        {saving ? 'Sparar...' : 'Save as Product'}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={pdfLoading}>
-                        <FileDown className="mr-1 h-3 w-3" />
-                        {pdfLoading ? 'Genererar...' : 'Generate PDF'}
-                      </Button>
+                    <div className="flex items-center gap-2 text-sm">
+                      {saving && (
+                        <span className="flex items-center gap-1 text-gray-500">
+                          <Save className="h-3.5 w-3.5 animate-pulse" />
+                          Sparar utkast...
+                        </span>
+                      )}
+                      {saveStatus && !saving && (
+                        <span className={saveStatus.ok ? 'text-green-600' : 'text-red-600'}>
+                          {saveStatus.ok ? <CheckCircle className="mr-1 inline h-3.5 w-3.5" /> : null}
+                          {saveStatus.message}
+                        </span>
+                      )}
                     </div>
+                    <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={pdfLoading}>
+                      <FileDown className="mr-1 h-3 w-3" />
+                      {pdfLoading ? 'Genererar...' : 'Download PDF'}
+                    </Button>
                   </div>
                 </div>
               </div>
