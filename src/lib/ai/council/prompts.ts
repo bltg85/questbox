@@ -1,4 +1,5 @@
 import type { CouncilInput } from './types';
+import { buildSkillBlock } from './skills';
 
 export function getGenerationSystemPrompt(input: CouncilInput): string {
   const languageInstructions = input.language === 'sv'
@@ -32,6 +33,7 @@ REQUIREMENTS:
 - Location: ${input.location || 'indoor'}
 
 ${languageInstructions}
+${buildSkillBlock(input)}
 
 OUTPUT FORMAT (JSON):
 {
@@ -70,6 +72,7 @@ REQUIREMENTS:
 - Number of questions: ${input.numberOfQuestions || 10}
 
 ${languageInstructions}
+${buildSkillBlock(input)}
 
 OUTPUT FORMAT (JSON):
 {
@@ -122,6 +125,7 @@ REQUIREMENTS:
 - Number of questions: ${input.numberOfQuestions || 10}
 
 ${languageInstructions}
+${buildSkillBlock(input)}
 
 OUTPUT FORMAT (JSON):
 {
@@ -173,8 +177,11 @@ OUTPUT FORMAT (JSON):
 {
   "strengths": ["Specific thing that's great", "Another strength"],
   "improvements": ["Area that needs work", "Another area"],
-  "specificSuggestions": ["Do X instead of Y", "Add more Z to section A"]
+  "specificSuggestions": ["Do X instead of Y", "Add more Z to section A"],
+  "qualityScore": 72
 }
+
+qualityScore is 1-100: how good is this content overall? (50 = average, 80 = excellent, 95+ = exceptional)
 
 Be constructive, not harsh. The goal is to help improve the content.
 ONLY output valid JSON, nothing else.`;
