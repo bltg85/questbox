@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createServiceClient();
     const body = await request.json();
-    const { content, type, theme, ageGroup, difficulty, language, imageDataUrl, translatedContent } = body;
+    const { content, type, theme, ageGroup, difficulty, language, imageDataUrl, translatedContent, status = 'draft' } = body;
 
     if (!content || !type) {
       return NextResponse.json({ error: 'Missing content or type' }, { status: 400 });
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         product_type: type,
         age_group: ageGroup || 'all',
         difficulty_level: difficulty || 'medium',
-        status: 'draft',
+        status: ['published', 'draft', 'archived'].includes(status) ? status : 'draft',
         is_free: true,
         is_ai_generated: true,
         thumbnail_url: thumbnailUrl,

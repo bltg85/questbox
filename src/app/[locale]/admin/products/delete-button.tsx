@@ -7,9 +7,10 @@ import { Trash2 } from 'lucide-react';
 
 interface DeleteProductButtonProps {
   productId: string;
+  onDeleted?: () => void;
 }
 
-export function DeleteProductButton({ productId }: DeleteProductButtonProps) {
+export function DeleteProductButton({ productId, onDeleted }: DeleteProductButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +26,8 @@ export function DeleteProductButton({ productId }: DeleteProductButtonProps) {
       });
 
       if (res.ok) {
-        router.refresh();
+        if (onDeleted) onDeleted();
+        else router.refresh();
       }
     } catch (error) {
       console.error('Failed to delete product:', error);
