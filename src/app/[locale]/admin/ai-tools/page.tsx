@@ -92,6 +92,7 @@ export default function AIToolsPage() {
   const [saveStatus, setSaveStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [generationTimeMs, setGenerationTimeMs] = useState<number | null>(null);
+  const [generateImageEnabled, setGenerateImageEnabled] = useState(false);
 
   const isCouncilMode = mode === 'economy' || mode === 'premium';
 
@@ -208,7 +209,7 @@ export default function AIToolsPage() {
         if (!res.ok) throw new Error(data.error || 'Generation failed');
         setGenerationTimeMs(Date.now() - startTime);
         setSingleResult(data);
-        generateImage();
+        if (generateImageEnabled) generateImage();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -261,7 +262,7 @@ export default function AIToolsPage() {
       setGenerationTimeMs(Date.now() - startTime);
       setStage('complete');
       setProgress(100);
-      generateImage();
+      if (generateImageEnabled) generateImage();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setStage('');
@@ -477,6 +478,16 @@ export default function AIToolsPage() {
                 onChange={(e) => setSingleProvider(e.target.value)}
               />
             )}
+
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={generateImageEnabled}
+                onChange={(e) => setGenerateImageEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+              />
+              Generate product image
+            </label>
 
             {error && (
               <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
