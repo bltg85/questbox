@@ -464,7 +464,7 @@ export function ProductForm({ product }: ProductFormProps) {
       </Card>
 
       {/* AI Content (read-only) */}
-      {product?.is_ai_generated && (
+      {product && (product?.is_ai_generated || product?.text_agent_id || product?.image_agent_id) && (
         <Card>
           <CardHeader>
             <CardTitle>AI-genererat innehåll</CardTitle>

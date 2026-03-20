@@ -4,6 +4,7 @@ import {
   getFeedbackSystemPrompt,
   getIterationSystemPrompt,
   getVotingSystemPrompt,
+  getTranslationSystemPrompt,
 } from './prompts';
 import {
   getAgentsByTier,
@@ -276,6 +277,26 @@ export async function runCouncil(
   const runnerUp = ranked[1] || null;
 
   const summary = generateSummary(winner, runnerUp, votes, voteCounts, agentNames);
+
+  // ============== ROUND 5: TRANSLATE (if bilingualMode) ==============
+  let translatedContent: any = undefined;
+  if (input.bilingualMode) {
+    report('complete', 97, 'Translating winner to Swedish...');
+    try {
+      const translationResponse = await generateWithAI({
+        systemPrompt: getTranslationSystemPrompt(),
+        userPrompt: JSON.stringify(winner.content, null, 2),
+        provider: activeProviders[0],
+        modelTier: input.modelTier,
+        operation: 'translate',
+        context: 'council',
+      });
+      translatedContent = parseJSON(translationResponse.content);
+    } catch (err) {
+      console.error('[Council] Translation failed:', err);
+    }
+  }
+
   report('complete', 100, `Winner: ${agentNames[winner.provider] || winner.provider}!`);
 
   // ============== ELO + FEEDBACK LOG (fire-and-forget) ==============
@@ -341,6 +362,7 @@ export async function runCouncil(
     votes,
     summary,
     totalTimeMs: Date.now() - startTime,
+    translatedContent,
     councilRunId,
     winnerAgentId,
     agentNames,

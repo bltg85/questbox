@@ -12,6 +12,7 @@ const CouncilRequestSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard']),
   language: z.enum(['en', 'sv']),
   modelTier: z.enum(['economy', 'premium']).optional(),
+  bilingualMode: z.boolean().optional(),
   additionalInstructions: z.string().optional(),
   numberOfClues: z.number().optional(),
   numberOfQuestions: z.number().optional(),
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
         votes: result.votes,
         summary: result.summary,
         totalTimeMs: result.totalTimeMs,
+        translatedContent: result.translatedContent ?? null,
       },
     });
   } catch (error) {

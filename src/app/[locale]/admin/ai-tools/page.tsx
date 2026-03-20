@@ -56,6 +56,7 @@ interface CouncilResultView {
   votes: VoteView[];
   summary: string;
   totalTimeMs: number;
+  translatedContent: any | null;
 }
 
 interface SingleResultView {
@@ -77,7 +78,7 @@ export default function AIToolsPage() {
   const [theme, setTheme] = useState('');
   const [ageGroup, setAgeGroup] = useState('child');
   const [difficulty, setDifficulty] = useState('medium');
-  const [language, setLanguage] = useState('sv');
+  const [language, setLanguage] = useState<'en' | 'sv' | 'bilingual'>('en');
   const [numberOfClues, setNumberOfClues] = useState(5);
   const [numberOfQuestions, setNumberOfQuestions] = useState(10);
   const [location, setLocation] = useState('indoor');
@@ -120,15 +121,16 @@ export default function AIToolsPage() {
     }
   };
 
-  const autoSaveProduct = async (content: any, imageDataUrl: string | null) => {
+  const autoSaveProduct = async (content: any, imageDataUrl: string | null, translatedContent?: any) => {
     if (!content) return;
     setSaving(true);
     setSaveStatus(null);
+    const apiLanguage = language === 'bilingual' ? 'en' : language;
     try {
       const res = await fetch('/api/ai/save-product', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, type, theme, ageGroup, difficulty, language, imageDataUrl }),
+        body: JSON.stringify({ content, type, theme, ageGroup, difficulty, language: apiLanguage, imageDataUrl, translatedContent: translatedContent ?? null }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Failed to save');
@@ -213,7 +215,7 @@ export default function AIToolsPage() {
         setSingleResult(data);
         let imageUrl: string | null = null;
         if (generateImageEnabled) imageUrl = await generateImage();
-        await autoSaveProduct(data.data, imageUrl);
+        await autoSaveProduct(data.data, imageUrl, undefined);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -238,6 +240,7 @@ export default function AIToolsPage() {
     }, 8000);
 
     try {
+      const councilLanguage = language === 'bilingual' ? 'en' : language;
       const res = await fetch('/api/ai/council', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -246,7 +249,8 @@ export default function AIToolsPage() {
           theme,
           ageGroup,
           difficulty,
-          language,
+          language: councilLanguage,
+          bilingualMode: language === 'bilingual',
           modelTier: mode,
           numberOfClues: type === 'treasure_hunt' ? numberOfClues : undefined,
           numberOfQuestions: type === 'quiz' ? numberOfQuestions : undefined,
@@ -268,7 +272,7 @@ export default function AIToolsPage() {
       setProgress(100);
       let imageUrl: string | null = null;
       if (generateImageEnabled) imageUrl = await generateImage();
-      await autoSaveProduct(data.data.winner?.content ?? null, imageUrl);
+      await autoSaveProduct(data.data.winner?.content ?? null, imageUrl, data.data.translatedContent ?? undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setStage('');
@@ -314,6 +318,7 @@ export default function AIToolsPage() {
       case 'feedback': return 'Models are reviewing each other\'s work...';
       case 'iterating': return 'Each model is improving based on feedback...';
       case 'voting': return 'Models are voting for the best version...';
+      case 'translating': return 'Translating winner to Swedish...';
       case 'complete': return 'Council complete!';
       default: return 'Starting...';
     }
@@ -381,11 +386,12 @@ export default function AIToolsPage() {
             <Select
               label="Language"
               options={[
-                { value: 'sv', label: 'Swedish' },
                 { value: 'en', label: 'English' },
+                { value: 'sv', label: 'Swedish' },
+                { value: 'bilingual', label: 'Bilingual (EN → translate to SV)' },
               ]}
               value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+              onChange={(e) => setLanguage(e.target.value as 'en' | 'sv' | 'bilingual')}
             />
 
             {type === 'treasure_hunt' && (
