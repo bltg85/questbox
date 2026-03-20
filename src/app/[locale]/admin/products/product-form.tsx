@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Input, Textarea, Select, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import { generateSlug } from '@/lib/utils';
-import type { Product, Category, ProductFormData } from '@/types';
+import type { Product, Category, ProductFormData, Agent } from '@/types';
 import { ImageIcon, Upload, Sparkles, FileText, ClipboardCheck } from 'lucide-react';
 
 interface ProductFormProps {
@@ -20,6 +20,8 @@ export function ProductForm({ product }: ProductFormProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(product?.thumbnail_url || null);
   const [imageUploading, setImageUploading] = useState(false);
   const [imageError, setImageError] = useState('');
+  const [textAgent, setTextAgent] = useState<Agent | null>(null);
+  const [imageAgent, setImageAgent] = useState<Agent | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<ProductFormData>({
@@ -49,6 +51,19 @@ export function ProductForm({ product }: ProductFormProps) {
     }
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    if (!product) return;
+    async function fetchAgents() {
+      const ids = [product!.text_agent_id, product!.image_agent_id].filter(Boolean);
+      if (!ids.length) return;
+      const { data } = await supabase.from('agents').select('*').in('id', ids);
+      if (!data) return;
+      if (product!.text_agent_id) setTextAgent(data.find((a) => a.id === product!.text_agent_id) ?? null);
+      if (product!.image_agent_id) setImageAgent(data.find((a) => a.id === product!.image_agent_id) ?? null);
+    }
+    fetchAgents();
+  }, [product]);
 
   const uploadImageDataUrl = async (dataUrl: string) => {
     const slug = formData.slug.en || formData.slug.sv || 'product';
@@ -455,7 +470,27 @@ export function ProductForm({ product }: ProductFormProps) {
             <CardTitle>AI-genererat innehåll</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-3">
+            {(textAgent || imageAgent) && (
+            <div className="flex flex-wrap gap-3 mb-3">
+              {textAgent && (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-sm text-indigo-700">
+                  <span>{textAgent.icon}</span>
+                  <span className="font-medium">{textAgent.name}</span>
+                  <span className="text-indigo-400">·</span>
+                  <span className="text-xs text-indigo-500">text</span>
+                </div>
+              )}
+              {imageAgent && (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-purple-100 bg-purple-50 px-3 py-1 text-sm text-purple-700">
+                  <span>{imageAgent.icon}</span>
+                  <span className="font-medium">{imageAgent.name}</span>
+                  <span className="text-purple-400">·</span>
+                  <span className="text-xs text-purple-500">bild</span>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-3">
               <a
                 href={`/api/products/${product.id}/pdf`}
                 target="_blank"
