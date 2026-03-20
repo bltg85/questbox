@@ -53,6 +53,8 @@ export interface Product {
   meta_description: LocalizedString | null;
   tags: string[];
   review_notes: string | null;
+  text_agent_id: string | null;
+  image_agent_id: string | null;
   created_at: string;
   updated_at: string;
   category?: Category;
@@ -68,6 +70,25 @@ export interface AIGenerationData {
 }
 
 export type AIProvider = 'openai' | 'anthropic' | 'google';
+
+// Agent
+export type AgentTier = 'economy' | 'premium' | 'image';
+
+export interface Agent {
+  id: string;
+  name: string;
+  icon: string;
+  tier: AgentTier;
+  provider: AIProvider;
+  model: string;
+  system_prompt: string;
+  elo: number;
+  wins: number;
+  losses: number;
+  total_rounds: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface AIGeneratorInput {
   type: ProductType;

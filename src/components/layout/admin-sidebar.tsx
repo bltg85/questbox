@@ -13,6 +13,7 @@ import {
   LogOut,
   CircleDollarSign,
   ClipboardCheck,
+  Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Products', href: '/admin/products', icon: Package },
   { name: 'Categories', href: '/admin/categories', icon: FolderTree },
   { name: 'AI Tools', href: '/admin/ai-tools', icon: Wand2 },
+  { name: 'AI Agents', href: '/admin/agents', icon: Bot },
   { name: 'AI Costs', href: '/admin/ai-costs', icon: CircleDollarSign },
   { name: 'Review', href: '/admin/review', icon: ClipboardCheck },
   { name: 'Subscribers', href: '/admin/subscribers', icon: Users },

@@ -57,6 +57,10 @@ export interface CouncilResult {
   summary: string;
   totalTokensUsed?: number;
   totalTimeMs: number;
+  // Agent tracking
+  councilRunId: string;
+  winnerAgentId: string | null;   // DB id of the winning agent
+  agentNames: Record<string, string>; // provider -> agent name+icon e.g. "⚡ Spark"
 }
 
 export interface CouncilStatus {
