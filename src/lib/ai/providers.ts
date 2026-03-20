@@ -192,7 +192,7 @@ export async function generateProductImage(prompt: string): Promise<string | nul
     const response = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
-        responseModalities: ['IMAGE'],
+        responseModalities: ['TEXT', 'IMAGE'],
       } as any,
     });
 
