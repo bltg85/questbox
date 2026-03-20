@@ -187,14 +187,20 @@ export async function generateProductImage(prompt: string): Promise<string | nul
   const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview'; // Nano Banana 2 (fast)
   const fallbackModel = 'gemini-3-pro-image-preview'; // Nano Banana Pro (slower, fallback)
 
-  const tryGenerate = async (modelName: string): Promise<string | null> => {
+  const tryGenerate = async (modelName: string, timeoutMs = 25_000): Promise<string | null> => {
     const model = google.getGenerativeModel({ model: modelName });
-    const response = await model.generateContent({
+    const generatePromise = model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         responseModalities: ['TEXT', 'IMAGE'],
       } as any,
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Model ${modelName} timed out after ${timeoutMs}ms`)), timeoutMs)
+    );
+
+    const response = await Promise.race([generatePromise, timeoutPromise]);
 
     const imagePart = response.response.candidates?.[0]?.content?.parts?.find(
       (part: any) => part.inlineData
@@ -206,26 +212,31 @@ export async function generateProductImage(prompt: string): Promise<string | nul
     return null;
   };
 
-  try {
-    const result = await tryGenerate(primaryModel);
-    if (result) {
-      console.log(`[Image] Success with primary model: ${primaryModel}`);
-      logImageUsage({ model: primaryModel, context: 'generate-image' });
-      return result;
+  const runWithFallback = async (): Promise<string | null> => {
+    try {
+      const result = await tryGenerate(primaryModel, 24_000);
+      if (result) {
+        console.log(`[Image] Success with primary model: ${primaryModel}`);
+        logImageUsage({ model: primaryModel, context: 'generate-image' });
+        return result;
+      }
+      console.warn(`[Image] ${primaryModel} returned no image, falling back to ${fallbackModel}`);
+    } catch (error: any) {
+      const status = error?.status ?? error?.httpStatus;
+      const isRetryable = status === 503 || status === 429 || error?.message?.includes('timed out');
+      if (!isRetryable) throw error;
+      console.warn(`[Image] ${primaryModel} failed (${status ?? 'timeout'}), falling back to ${fallbackModel}`);
     }
-    // Primary returned null (no image part) — try fallback
-    console.warn(`[Image] ${primaryModel} returned no image, falling back to ${fallbackModel}`);
-    const fallback = await tryGenerate(fallbackModel);
-    if (fallback) logImageUsage({ model: fallbackModel, context: 'generate-image' });
-    return fallback;
-  } catch (error: any) {
-    const status = error?.status ?? error?.httpStatus;
-    if (status === 503 || status === 429) {
-      console.warn(`[Image] ${primaryModel} unavailable (${status}), falling back to ${fallbackModel}`);
-      const result = await tryGenerate(fallbackModel);
-      if (result) logImageUsage({ model: fallbackModel, context: 'generate-image' });
-      return result;
+
+    try {
+      const fallback = await tryGenerate(fallbackModel, 28_000);
+      if (fallback) logImageUsage({ model: fallbackModel, context: 'generate-image' });
+      return fallback;
+    } catch (error: any) {
+      console.error(`[Image] Fallback model ${fallbackModel} also failed:`, error?.message);
+      return null;
     }
-    throw error;
-  }
+  };
+
+  return runWithFallback();
 }
