@@ -7,6 +7,7 @@ export interface CouncilInput {
   difficulty: DifficultyLevel;
   language: Locale;
   modelTier?: 'economy' | 'premium';
+  bilingualMode?: boolean; // Generate in EN, then translate winner to SV
   additionalInstructions?: string;
   // Type-specific
   numberOfClues?: number;
@@ -58,6 +59,7 @@ export interface CouncilResult {
   summary: string;
   totalTokensUsed?: number;
   totalTimeMs: number;
+  translatedContent?: any; // Swedish translation of winner (if bilingualMode)
   // Agent tracking
   councilRunId: string;
   winnerAgentId: string | null;   // DB id of the winning agent

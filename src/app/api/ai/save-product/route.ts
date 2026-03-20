@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createServiceClient();
     const body = await request.json();
-    const { content, type, theme, ageGroup, difficulty, language, imageDataUrl } = body;
+    const { content, type, theme, ageGroup, difficulty, language, imageDataUrl, translatedContent } = body;
 
     if (!content || !type) {
       return NextResponse.json({ error: 'Missing content or type' }, { status: 400 });
@@ -106,14 +106,20 @@ export async function POST(request: NextRequest) {
       console.warn('[Save Product] PDF generation failed:', pdfErr);
     }
 
-    const localizedTitle = { en: title, sv: title };
-    const localizedSlug = { en: slug, sv: slug };
+    const svContent = translatedContent ?? null;
+    const svTitle: string = svContent?.title || title;
+    const svSlug = slugify(svTitle) + '-' + Date.now().toString(36);
+
+    const localizedTitle = { en: title, sv: svTitle };
+    const localizedSlug = { en: slug, sv: svContent ? svSlug : slug };
 
     // Extract description from AI content
     const introduction: string = (content as Record<string, unknown>).introduction as string || '';
     const shortDesc = introduction.slice(0, 220).trim();
-    const localizedDesc = { en: introduction, sv: introduction };
-    const localizedShortDesc = { en: shortDesc, sv: shortDesc };
+    const svIntroduction: string = svContent?.introduction || introduction;
+    const svShortDesc = svIntroduction.slice(0, 220).trim();
+    const localizedDesc = { en: introduction, sv: svIntroduction };
+    const localizedShortDesc = { en: shortDesc, sv: svShortDesc };
 
     const { data, error } = await supabase
       .from('products')

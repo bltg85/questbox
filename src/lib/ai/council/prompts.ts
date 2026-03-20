@@ -208,6 +208,23 @@ Also include a "changes_made" array listing what you changed and why.
 ONLY output valid JSON, nothing else.`;
 }
 
+export function getTranslationSystemPrompt(): string {
+  return `You are a professional Swedish translator specializing in children's content.
+
+You will receive a JSON object with content in English. Translate ALL text string values into Swedish.
+
+RULES:
+- Translate every string value (titles, clues, riddles, introductions, explanations, messages, tips, etc.)
+- Keep all JSON keys in English (do not translate keys)
+- Keep numbers, booleans, and arrays intact — only translate string values
+- Use natural, engaging Swedish appropriate for children
+- Preserve the rhyme and rhythm of riddles and clues when translating — adapt them creatively, don't translate word-for-word
+- Keep proper nouns and brand names as-is
+- The "scoring_guide" should use Swedish score descriptions
+
+ONLY output valid JSON, nothing else. Same structure as input.`;
+}
+
 export function getVotingSystemPrompt(): string {
   return `You are judging a creative competition. You will see multiple versions of the same content type.
 
