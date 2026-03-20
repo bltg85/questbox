@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import type { Agent } from '@/types';
 import { Trophy, Swords, TrendingUp, Activity } from 'lucide-react';
+import Link from 'next/link';
 import AgentEditPanel from './agent-edit-panel';
 
 function winRate(agent: Agent): number {
@@ -32,7 +33,36 @@ const TIER_COLORS: Record<string, string> = {
   image: 'bg-orange-50 border-orange-200',
 };
 
-export default async function AgentsPage() {
+interface FeedbackLogRow {
+  agent_id: string;
+  won: boolean;
+  elo_delta: number | null;
+  created_at: string;
+  feedback_received: { strengths?: string[]; improvements?: string[] }[] | null;
+}
+
+// Pick the most representative strength from recent feedback for an agent
+function pickFeedbackTagline(
+  agentId: string,
+  logs: FeedbackLogRow[]
+): string | null {
+  const agentLogs = logs.filter((l) => l.agent_id === agentId);
+  const strengths: string[] = [];
+  for (const log of agentLogs.slice(0, 5)) {
+    if (!log.feedback_received) continue;
+    for (const item of log.feedback_received) {
+      if (item.strengths) strengths.push(...item.strengths);
+    }
+  }
+  return strengths.length > 0 ? strengths[0] : null;
+}
+
+export default async function AgentsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
   const supabase = await createServiceClient();
 
   const { data: agentsRaw } = await supabase
@@ -46,17 +76,22 @@ export default async function AgentsPage() {
   const premium = agents.filter((a) => a.tier === 'premium');
   const image = agents.filter((a) => a.tier === 'image');
 
-  // Recent runs (last 20 entries for activity)
+  // Recent runs (last 50 entries for activity + taglines)
   const { data: recentLog } = await supabase
     .from('agent_feedback_log')
-    .select('agent_id, won, elo_delta, created_at')
+    .select('agent_id, won, elo_delta, created_at, feedback_received')
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(50);
+
+  const allLog = (recentLog || []) as FeedbackLogRow[];
 
   const totalRuns = Math.max(
     ...agents.map((a) => a.total_rounds),
     0
   );
+
+  // Limit to last 20 for the activity table
+  const recentActivityLog = allLog.slice(0, 20);
 
   return (
     <div className="space-y-8">
@@ -106,62 +141,75 @@ export default async function AgentsPage() {
             {list.length === 0 && (
               <p className="text-sm text-gray-400">Inga agenter.</p>
             )}
-            {list.map((agent, idx) => (
-              <div
-                key={agent.id}
-                className={`rounded-xl border p-4 ${TIER_COLORS[agent.tier]} bg-white`}
-              >
-                <div className="flex items-start gap-4">
-                  {/* Rank + icon */}
-                  <div className="flex items-center gap-3 min-w-[120px]">
-                    <span className="text-2xl font-bold text-gray-300">#{idx + 1}</span>
-                    <span className="text-3xl">{agent.icon}</span>
-                    <div>
-                      <p className="font-bold text-gray-900">{agent.name}</p>
-                      <p className="text-xs text-gray-500">{agent.provider} · {agent.model}</p>
+            {list.map((agent, idx) => {
+              const tagline = pickFeedbackTagline(agent.id, allLog);
+              return (
+                <div
+                  key={agent.id}
+                  className={`rounded-xl border p-4 ${TIER_COLORS[agent.tier]} bg-white`}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Rank + icon — clickable link to detail */}
+                    <Link
+                      href={`/${locale}/admin/agents/${agent.id}`}
+                      className="flex items-center gap-3 min-w-[120px] hover:opacity-80 transition"
+                    >
+                      <span className="text-2xl font-bold text-gray-300">#{idx + 1}</span>
+                      <span className="text-3xl">{agent.icon}</span>
+                      <div>
+                        <p className="font-bold text-gray-900 hover:underline">{agent.name}</p>
+                        <p className="text-xs text-gray-500">{agent.provider} · {agent.model}</p>
+                      </div>
+                    </Link>
+
+                    {/* ELO bar */}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-lg font-bold ${eloColor(agent.elo)}`}>
+                          {agent.elo} ELO
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {agent.wins}W · {agent.losses}L · {winRate(agent)}% win rate
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-gray-200">
+                        <div
+                          className="h-2 rounded-full bg-indigo-500 transition-all"
+                          style={{ width: `${eloBar(agent.elo)}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-gray-400">{agent.total_rounds} rundor totalt</p>
                     </div>
+
+                    {/* Edit panel */}
+                    <AgentEditPanel agent={agent} />
                   </div>
 
-                  {/* ELO bar */}
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-lg font-bold ${eloColor(agent.elo)}`}>
-                        {agent.elo} ELO
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {agent.wins}W · {agent.losses}L · {winRate(agent)}% win rate
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-gray-200">
-                      <div
-                        className="h-2 rounded-full bg-indigo-500 transition-all"
-                        style={{ width: `${eloBar(agent.elo)}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-gray-400">{agent.total_rounds} rundor totalt</p>
-                  </div>
+                  {/* Feedback tagline (from peer feedback) */}
+                  {tagline && (
+                    <p className="mt-2 text-xs text-indigo-700 italic border-l-2 border-indigo-200 pl-2">
+                      &ldquo;{tagline}&rdquo;
+                    </p>
+                  )}
 
-                  {/* Edit panel */}
-                  <AgentEditPanel agent={agent} />
+                  {/* System prompt preview (fallback if no tagline) */}
+                  {!tagline && agent.system_prompt && (
+                    <div className="mt-3 rounded-lg bg-white/70 p-3 text-xs text-gray-600 font-mono border border-gray-100 line-clamp-3">
+                      {agent.system_prompt}
+                    </div>
+                  )}
+                  {!tagline && !agent.system_prompt && (
+                    <p className="mt-2 text-xs text-gray-400 italic">Ingen feedback ännu.</p>
+                  )}
                 </div>
-
-                {/* System prompt preview */}
-                {agent.system_prompt && (
-                  <div className="mt-3 rounded-lg bg-white/70 p-3 text-xs text-gray-600 font-mono border border-gray-100 line-clamp-3">
-                    {agent.system_prompt}
-                  </div>
-                )}
-                {!agent.system_prompt && (
-                  <p className="mt-2 text-xs text-gray-400 italic">Ingen personlig system prompt ännu.</p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ))}
 
       {/* Recent activity */}
-      {recentLog && recentLog.length > 0 && (
+      {recentActivityLog.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-gray-800">Senaste aktivitet</h2>
           <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -175,13 +223,20 @@ export default async function AgentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {recentLog.map((entry: any) => {
+                {recentActivityLog.map((entry) => {
                   const agent = agents.find((a) => a.id === entry.agent_id);
                   const delta = entry.elo_delta ?? 0;
                   return (
                     <tr key={entry.agent_id + entry.created_at} className="hover:bg-gray-50">
                       <td className="px-4 py-2 font-medium text-gray-900">
-                        {agent ? `${agent.icon} ${agent.name}` : '—'}
+                        {agent ? (
+                          <Link
+                            href={`/${locale}/admin/agents/${agent.id}`}
+                            className="hover:underline"
+                          >
+                            {agent.icon} {agent.name}
+                          </Link>
+                        ) : '—'}
                       </td>
                       <td className="px-4 py-2">
                         {entry.won ? (
