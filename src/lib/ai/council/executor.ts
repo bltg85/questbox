@@ -12,6 +12,7 @@ import {
   calculateEloUpdates,
   applyEloUpdates,
   logAgentFeedback,
+  appendReflectionNotes,
 } from './agents';
 import type {
   CouncilInput,
@@ -125,6 +126,9 @@ export async function runCouncil(
           strengths: feedback.strengths || [],
           improvements: feedback.improvements || [],
           specificSuggestions: feedback.specificSuggestions || [],
+          qualityScore: typeof feedback.qualityScore === 'number'
+            ? Math.min(100, Math.max(1, Math.round(feedback.qualityScore)))
+            : 50,
         } as FeedbackItem;
       })
     )
@@ -280,30 +284,53 @@ export async function runCouncil(
 
   if (agents.length === 3 && winnerAgentId) {
     const eloUpdates = calculateEloUpdates(agents, winnerAgentId);
+    const today = new Date().toISOString().slice(0, 10);
 
-    const feedbackEntries = iteratedProposals.map((proposal) => {
+    const perAgent = iteratedProposals.map((proposal) => {
       const agent = agentMap[proposal.provider];
       const eloUpdate = eloUpdates.find((u) => u.agent.id === agent?.id);
-      return {
-        councilRunId,
-        agentId: agent?.id ?? '',
-        tier,
+      const feedbackForThis = allFeedback.filter((f) => f.toProvider === proposal.provider);
+      const scores = feedbackForThis.map((f) => f.qualityScore).filter((s) => typeof s === 'number');
+      const avgQualityScore = scores.length > 0
+        ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+        : null;
+      return { proposal, agent, eloUpdate, feedbackForThis, avgQualityScore };
+    }).filter((e) => e.agent?.id);
+
+    const feedbackEntries = perAgent.map(({ proposal, agent, eloUpdate, feedbackForThis, avgQualityScore }) => ({
+      councilRunId,
+      agentId: agent!.id,
+      tier,
+      productType: input.type,
+      theme: input.theme,
+      feedbackReceived: feedbackForThis,
+      finalContent: proposal.content,
+      votesReceived: voteCounts[proposal.provider] || 0,
+      won: proposal.provider === winner.provider,
+      eloBefore: eloUpdate?.eloBefore ?? agent!.elo,
+      eloAfter: eloUpdate?.eloAfter ?? agent!.elo,
+      eloDelta: eloUpdate?.eloDelta ?? 0,
+      avgQualityScore,
+    }));
+
+    const reflectionUpdates = perAgent.map(({ proposal, agent, feedbackForThis, avgQualityScore }) =>
+      appendReflectionNotes(agent!.id, agent!.reflection_notes ?? '', {
+        date: today,
         productType: input.type,
         theme: input.theme,
-        feedbackReceived: allFeedback.filter((f) => f.toProvider === proposal.provider),
-        finalContent: proposal.content,
-        votesReceived: voteCounts[proposal.provider] || 0,
+        strengths: feedbackForThis.flatMap((f) => f.strengths),
+        improvements: feedbackForThis.flatMap((f) => f.improvements),
+        suggestions: feedbackForThis.flatMap((f) => f.specificSuggestions),
+        avgQualityScore,
         won: proposal.provider === winner.provider,
-        eloBefore: eloUpdate?.eloBefore ?? agent?.elo ?? 1600,
-        eloAfter: eloUpdate?.eloAfter ?? agent?.elo ?? 1600,
-        eloDelta: eloUpdate?.eloDelta ?? 0,
-      };
-    }).filter((e) => e.agentId);
+      })
+    );
 
     // Fire-and-forget
     Promise.allSettled([
       applyEloUpdates(eloUpdates),
       logAgentFeedback(feedbackEntries),
+      ...reflectionUpdates,
     ]).catch((err) => console.error('[Council] ELO/log error:', err));
   }
 

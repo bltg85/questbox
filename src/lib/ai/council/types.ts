@@ -28,6 +28,7 @@ export interface FeedbackItem {
   strengths: string[];
   improvements: string[];
   specificSuggestions: string[];
+  qualityScore: number; // 1-100 peer quality rating
 }
 
 export interface IteratedProposal extends GeneratedProposal {

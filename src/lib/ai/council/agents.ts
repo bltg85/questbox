@@ -32,8 +32,11 @@ export function buildAgentMap(agents: Agent[]): Record<AIProvider, Agent> {
 
 // Combine agent's personal system prompt with the base prompt
 export function buildSystemPrompt(agent: Agent | undefined, basePrompt: string): string {
-  if (!agent?.system_prompt) return basePrompt;
-  return `${agent.system_prompt}\n\n---\n\n${basePrompt}`;
+  const parts: string[] = [];
+  if (agent?.system_prompt) parts.push(agent.system_prompt);
+  if (agent?.reflection_notes) parts.push(`## Learnings from previous council runs:\n${agent.reflection_notes}`);
+  if (parts.length === 0) return basePrompt;
+  return `${parts.join('\n\n---\n\n')}\n\n---\n\n${basePrompt}`;
 }
 
 // ============== ELO ==============
@@ -111,6 +114,7 @@ export interface FeedbackLogEntry {
   eloBefore: number;
   eloAfter: number;
   eloDelta: number;
+  avgQualityScore: number | null;
 }
 
 export async function logAgentFeedback(entries: FeedbackLogEntry[]): Promise<void> {
@@ -130,10 +134,41 @@ export async function logAgentFeedback(entries: FeedbackLogEntry[]): Promise<voi
         elo_before: e.eloBefore,
         elo_after: e.eloAfter,
         elo_delta: e.eloDelta,
+        avg_quality_score: e.avgQualityScore,
         component_wins: { overall: e.won ? e.agentId : null },
       }))
     );
   } catch (err) {
     console.error('[Agents] Failed to log feedback:', err);
+  }
+}
+
+// Append feedback summary to agent's reflection_notes
+export async function appendReflectionNotes(
+  agentId: string,
+  currentNotes: string,
+  newEntry: { date: string; productType: string; theme: string; strengths: string[]; improvements: string[]; suggestions: string[]; avgQualityScore: number | null; won: boolean }
+): Promise<void> {
+  try {
+    const wonLabel = newEntry.won ? ' 🏆 WON' : '';
+    const scoreLabel = newEntry.avgQualityScore != null ? ` | Avg quality score: ${newEntry.avgQualityScore}/100` : '';
+    const entry = [
+      `[${newEntry.date}] ${newEntry.productType} "${newEntry.theme}"${wonLabel}${scoreLabel}`,
+      newEntry.strengths.length ? `  ✓ ${newEntry.strengths.slice(0, 2).join(' | ')}` : '',
+      newEntry.improvements.length ? `  ↑ ${newEntry.improvements.slice(0, 2).join(' | ')}` : '',
+      newEntry.suggestions.length ? `  → ${newEntry.suggestions.slice(0, 2).join(' | ')}` : '',
+    ].filter(Boolean).join('\n');
+
+    // Keep last 10 entries (avoid unbounded growth)
+    const existingEntries = currentNotes.trim() ? currentNotes.trim().split('\n\n') : [];
+    const updatedNotes = [...existingEntries.slice(-9), entry].join('\n\n');
+
+    const supabase = await createServiceClient();
+    await supabase
+      .from('agents')
+      .update({ reflection_notes: updatedNotes, updated_at: new Date().toISOString() })
+      .eq('id', agentId);
+  } catch (err) {
+    console.error('[Agents] Failed to update reflection notes:', err);
   }
 }

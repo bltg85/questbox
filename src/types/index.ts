@@ -82,6 +82,7 @@ export interface Agent {
   provider: AIProvider;
   model: string;
   system_prompt: string;
+  reflection_notes: string;
   elo: number;
   wins: number;
   losses: number;
