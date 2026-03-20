@@ -94,6 +94,7 @@ export default function AIToolsPage() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [generationTimeMs, setGenerationTimeMs] = useState<number | null>(null);
   const [generateImageEnabled, setGenerateImageEnabled] = useState(false);
+  const [publishDirectly, setPublishDirectly] = useState(true);
 
   const isCouncilMode = mode === 'economy' || mode === 'premium';
 
@@ -126,15 +127,16 @@ export default function AIToolsPage() {
     setSaving(true);
     setSaveStatus(null);
     const apiLanguage = language === 'bilingual' ? 'en' : language;
+    const status = publishDirectly ? 'published' : 'draft';
     try {
       const res = await fetch('/api/ai/save-product', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, type, theme, ageGroup, difficulty, language: apiLanguage, imageDataUrl, translatedContent: translatedContent ?? null }),
+        body: JSON.stringify({ content, type, theme, ageGroup, difficulty, language: apiLanguage, imageDataUrl, translatedContent: translatedContent ?? null, status }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Failed to save');
-      setSaveStatus({ ok: true, message: `Sparad som utkast! ID: ${data.data.id.slice(0, 8)}…` });
+      setSaveStatus({ ok: true, message: publishDirectly ? `Publicerad! ID: ${data.data.id.slice(0, 8)}…` : `Sparad som utkast! ID: ${data.data.id.slice(0, 8)}…` });
     } catch (err) {
       setSaveStatus({ ok: false, message: err instanceof Error ? err.message : 'Fel vid sparning' });
     } finally {
@@ -499,6 +501,16 @@ export default function AIToolsPage() {
                 className="h-4 w-4 rounded border-gray-300 text-indigo-600"
               />
               Generate product image
+            </label>
+
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={publishDirectly}
+                onChange={(e) => setPublishDirectly(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+              />
+              Publish directly
             </label>
 
             {error && (
