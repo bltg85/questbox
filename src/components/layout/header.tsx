@@ -47,7 +47,7 @@ export function Header() {
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
             <Link href="/products" className="hidden md:block">
-              <Button className="bg-amber-400 text-indigo-900 hover:bg-amber-300">{t('hero.cta')}</Button>
+              <Button>{t('hero.cta')}</Button>
             </Link>
 
             {/* Mobile menu button */}
@@ -79,7 +79,7 @@ export function Header() {
                 </Link>
               ))}
               <Link href="/products" onClick={() => setIsMenuOpen(false)}>
-                <Button className="w-full bg-amber-400 text-indigo-900 hover:bg-amber-300">{t('hero.cta')}</Button>
+                <Button className="w-full">{t('hero.cta')}</Button>
               </Link>
             </nav>
           </div>

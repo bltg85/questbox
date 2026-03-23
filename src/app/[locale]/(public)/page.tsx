@@ -67,7 +67,7 @@ export default async function HomePage() {
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/products">
-                <Button size="lg" className="bg-green-500 text-white hover:bg-green-400 shadow-lg">
+                <Button size="lg" className="bg-white text-indigo-600 hover:bg-gray-100">
                   {t('hero.cta')}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
