@@ -1,5 +1,63 @@
 // Product Types
 export type ProductType = 'treasure_hunt' | 'quiz' | 'diploma' | 'party_game' | 'escape_game';
+
+// ─── Skattjakt: Steg & Mallar ────────────────────────────────────────────────
+
+export type StegKategori = 'BERATTELSE' | 'SOKNING' | 'PUSSEL' | 'FRAGA' | 'AKTIVITET';
+
+export type StegTyp =
+  | 'INTRO'            // BERATTELSE – flaskpost, brev, uppdragstext
+  | 'FINAL'            // BERATTELSE – kistan, avslutningsscen
+  | 'SOK'              // SOKNING    – hitta föremål fysiskt
+  | 'PUSSEL_FYSISKT'   // PUSSEL     – lägg ihop bitar (karta, bild)
+  | 'PUSSEL_LOGIK'     // PUSSEL     – tänkpussel, sekvens, kod att knäcka
+  | 'GATA'             // FRAGA      – klassisk gåta med ett svar
+  | 'VAL'              // FRAGA      – välj rätt bild / alternativ
+  | 'LASUPPDRAG'       // FRAGA      – läs och extrahera svar
+  | 'MINISPEL';        // AKTIVITET  – fiskedam, kastelek, etc.
+
+export const STEG_KATEGORI: Record<StegTyp, StegKategori> = {
+  INTRO:          'BERATTELSE',
+  FINAL:          'BERATTELSE',
+  SOK:            'SOKNING',
+  PUSSEL_FYSISKT: 'PUSSEL',
+  PUSSEL_LOGIK:   'PUSSEL',
+  GATA:           'FRAGA',
+  VAL:            'FRAGA',
+  LASUPPDRAG:     'FRAGA',
+  MINISPEL:       'AKTIVITET',
+};
+
+export interface StegTypDefinition {
+  id: string;
+  kategori: StegKategori;
+  typ: StegTyp;
+  namn: LocalizedString;
+  beskrivning: LocalizedString;
+  tema_kompatibilitet: string[];      // teman det passar för, t.ex. ['pirat', 'detektiv']
+  rekommenderad_alder: AgeGroup[];
+  estimerad_tid_minuter: number | null;
+  material: string[];                 // fysiskt material som krävs
+  format: 'FYSISK' | 'DIGITAL' | 'HYBRID';
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JaktMall {
+  id: string;
+  namn: string;
+  beskrivning: string | null;
+  steg_typer: StegTyp[];              // ordnad lista – skattjaktens skelett
+  passar_teman: string[];
+  rekommenderad_alder: AgeGroup[];
+  rekommenderad_tid_minuter: number | null;
+  is_system_mall: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 export type ProductStatus = 'draft' | 'published' | 'archived';
 export type AgeGroup = 'toddler' | 'child' | 'teen' | 'adult' | 'all';
 export type DifficultyLevel = 'easy' | 'medium' | 'hard';

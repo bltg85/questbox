@@ -1,4 +1,4 @@
-import type { AIProvider, ProductType, AgeGroup, DifficultyLevel, Locale, QuizSubtype } from '@/types';
+import type { AIProvider, ProductType, AgeGroup, DifficultyLevel, Locale, QuizSubtype, StegTyp } from '@/types';
 
 export interface CouncilInput {
   type: ProductType;
@@ -15,6 +15,10 @@ export interface CouncilInput {
   location?: string;
   // Quiz-specific
   quizSubtype?: QuizSubtype;
+  // Treasure hunt: mall & step composition
+  mallId?: string;
+  mallNamn?: string;
+  stegTyper?: StegTyp[];   // ordered list of step types the agent should follow
 }
 
 export interface GeneratedProposal {
@@ -23,13 +27,21 @@ export interface GeneratedProposal {
   generatedAt: string;
 }
 
+export interface StegTypFeedback {
+  temaKompatibilitetsScore: number; // 1-10: hur väl steg-typerna passar temat
+  saknadeStegTyper: string[];       // steg-typer som hade passat men saknas
+  olämpligaStegTyper: string[];     // steg-typer som inte passar temat/åldern
+  kommentar: string;
+}
+
 export interface FeedbackItem {
   fromProvider: AIProvider;
   toProvider: AIProvider;
   strengths: string[];
   improvements: string[];
   specificSuggestions: string[];
-  qualityScore: number; // 1-100 peer quality rating
+  qualityScore: number;       // 1-100 peer quality rating
+  stegTypFeedback?: StegTypFeedback; // only present for treasure_hunt with stegTyper
 }
 
 export interface IteratedProposal extends GeneratedProposal {
