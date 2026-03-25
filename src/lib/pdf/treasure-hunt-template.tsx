@@ -164,7 +164,7 @@ export function TreasureHuntPDF({ content }: TreasureHuntPDFProps) {
           ))}
         </View>
 
-        <Text style={styles.footer}>Created with QuestBox • questbox.io</Text>
+        <Text style={styles.footer}>Created with SuitedPlay • suitedplay.com</Text>
       </Page>
 
       {/* Clues Pages */}
@@ -193,7 +193,7 @@ export function TreasureHuntPDF({ content }: TreasureHuntPDFProps) {
             </View>
           )}
 
-          <Text style={styles.footer}>Created with QuestBox • questbox.io</Text>
+          <Text style={styles.footer}>Created with SuitedPlay • suitedplay.com</Text>
         </Page>
       ))}
     </Document>

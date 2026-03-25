@@ -48,9 +48,9 @@ export function AdminSidebar() {
         {/* Logo */}
         <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold">
-            Q
+            S
           </div>
-          <span className="text-xl font-bold text-gray-900">QuestBox</span>
+          <span className="text-xl font-bold text-gray-900">SuitedPlay</span>
         </div>
 
         {/* Navigation */}

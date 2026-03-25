@@ -46,7 +46,7 @@ export async function sendDownloadEmail({ to, productName, downloadUrl }: SendDo
               </div>
 
               <p style="color: #a1a1aa; font-size: 12px; text-align: center; margin-top: 24px;">
-                © ${new Date().getFullYear()} QuestBox. All rights reserved.
+                © ${new Date().getFullYear()} SuitedPlay. All rights reserved.
               </p>
             </div>
           </body>
@@ -69,8 +69,8 @@ export async function sendWelcomeEmail({ to, locale = 'en' }: SendWelcomeEmailPa
   const isSwedish = locale === 'sv';
 
   const subject = isSwedish
-    ? 'Välkommen till QuestBox!'
-    : 'Welcome to QuestBox!';
+    ? 'Välkommen till SuitedPlay!'
+    : 'Welcome to SuitedPlay!';
 
   const heading = isSwedish
     ? 'Välkommen!'
@@ -112,7 +112,7 @@ export async function sendWelcomeEmail({ to, locale = 'en' }: SendWelcomeEmailPa
               </div>
 
               <p style="color: #a1a1aa; font-size: 12px; text-align: center; margin-top: 24px;">
-                © ${new Date().getFullYear()} QuestBox. All rights reserved.
+                © ${new Date().getFullYear()} SuitedPlay. All rights reserved.
               </p>
             </div>
           </body>

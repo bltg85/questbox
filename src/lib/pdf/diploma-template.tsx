@@ -168,7 +168,7 @@ export function DiplomaPDF({ content, recipientName = '{name}', date }: DiplomaP
           <Text style={styles.decorBottom}>✦ ✦ ✦</Text>
         </View>
 
-        <Text style={styles.watermark}>Created with QuestBox</Text>
+        <Text style={styles.watermark}>Created with SuitedPlay</Text>
       </Page>
     </Document>
   );

@@ -13,8 +13,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'QuestBox - Digital Products for Unforgettable Moments',
-    template: '%s | QuestBox',
+    default: 'SuitedPlay - Digital Products for Unforgettable Moments',
+    template: '%s | SuitedPlay',
   },
   description: 'Ready-to-use treasure hunts, quizzes, and party games for every occasion. Download instantly and create magical memories.',
   keywords: ['treasure hunt', 'quiz', 'party games', 'diploma', 'digital products', 'children activities'],

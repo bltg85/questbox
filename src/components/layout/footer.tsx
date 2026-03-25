@@ -35,9 +35,9 @@ export function Footer() {
           <div>
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold">
-                Q
+                S
               </div>
-              <span className="text-xl font-bold text-gray-900">QuestBox</span>
+              <span className="text-xl font-bold text-gray-900">SuitedPlay</span>
             </Link>
             <p className="mt-4 text-sm text-gray-600">{t('footer.tagline')}</p>
           </div>
