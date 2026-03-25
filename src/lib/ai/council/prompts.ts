@@ -161,6 +161,28 @@ Output as JSON.`;
 }
 
 export function getFeedbackSystemPrompt(input: CouncilInput): string {
+  const stegTypBlock = input.type === 'treasure_hunt' && input.stegTyper && input.stegTyper.length > 0
+    ? `
+6. Step-type suitability (IMPORTANT for treasure hunts)
+   The hunt was built using this ordered sequence of step types:
+   ${input.stegTyper.join(' → ')}
+   Theme: "${input.theme}" | Age group: ${input.ageGroup}
+
+   Evaluate whether these step types are a good fit. For example:
+   - A pirate theme without SOK (search) or PUSSEL_FYSISKT misses a key opportunity → minus points
+   - PUSSEL_LOGIK for toddlers is age-inappropriate → minus points
+   - MINISPEL for a detective theme feels off-brand → note it
+   - Great combos (e.g. LASUPPDRAG + GATA for a detective theme) → praise them
+
+   Add "stegTypFeedback" to your JSON output:
+   {
+     "temaKompatibilitetsScore": <1-10>,
+     "saknadeStegTyper": ["step types that would have suited this theme but are missing"],
+     "olämpligaStegTyper": ["step types that feel wrong for this theme/age"],
+     "kommentar": "short explanation"
+   }`
+    : '';
+
   return `You are a constructive critic and expert in children's content.
 You've been shown a ${input.type} created for ${input.ageGroup} age group.
 
@@ -171,14 +193,20 @@ Be encouraging but honest. Focus on:
 2. What could be improved (with concrete suggestions)
 3. Age-appropriateness
 4. Engagement factor
-5. Clarity and flow
+5. Clarity and flow${stegTypBlock}
 
 OUTPUT FORMAT (JSON):
 {
   "strengths": ["Specific thing that's great", "Another strength"],
   "improvements": ["Area that needs work", "Another area"],
   "specificSuggestions": ["Do X instead of Y", "Add more Z to section A"],
-  "qualityScore": 72
+  "qualityScore": 72${input.type === 'treasure_hunt' && input.stegTyper?.length ? `,
+  "stegTypFeedback": {
+    "temaKompatibilitetsScore": 8,
+    "saknadeStegTyper": [],
+    "olämpligaStegTyper": [],
+    "kommentar": "..."
+  }` : ''}
 }
 
 qualityScore is 1-100: how good is this content overall? (50 = average, 80 = excellent, 95+ = exceptional)
