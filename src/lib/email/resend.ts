@@ -12,4 +12,4 @@ export function getResend(): Resend {
   return resendClient;
 }
 
-export const FROM_EMAIL = 'QuestBox <noreply@questbox.io>';
+export const FROM_EMAIL = 'SuitedPlay <noreply@suitedplay.com>';

@@ -262,7 +262,7 @@ export function QuizPDF({ content, showAnswers = false }: QuizPDFProps) {
             </View>
           ))}
 
-          <Text style={styles.footer}>Created with QuestBox • questbox.io</Text>
+          <Text style={styles.footer}>Created with SuitedPlay • suitedplay.com</Text>
         </Page>
       ))}
 
@@ -334,7 +334,7 @@ export function QuizPDF({ content, showAnswers = false }: QuizPDFProps) {
             </View>
           )}
 
-          <Text style={styles.footer}>Created with QuestBox • questbox.io</Text>
+          <Text style={styles.footer}>Created with SuitedPlay • suitedplay.com</Text>
         </Page>
       )}
 
@@ -370,7 +370,7 @@ export function QuizPDF({ content, showAnswers = false }: QuizPDFProps) {
             ))}
           </View>
 
-          <Text style={styles.footer}>Created with QuestBox • questbox.io</Text>
+          <Text style={styles.footer}>Created with SuitedPlay • suitedplay.com</Text>
         </Page>
       )}
     </Document>

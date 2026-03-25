@@ -15,14 +15,14 @@ export default function AdminSettingsPage() {
           <CardContent className="space-y-4">
             <Input
               label="Site Name"
-              defaultValue="QuestBox"
+              defaultValue="SuitedPlay"
               disabled
               hint="Contact support to change"
             />
             <Input
               label="Support Email"
               type="email"
-              defaultValue="support@questbox.io"
+              defaultValue="support@suitedplay.com"
             />
           </CardContent>
         </Card>
