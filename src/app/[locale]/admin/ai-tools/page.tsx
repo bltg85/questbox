@@ -273,7 +273,7 @@ export default function AIToolsPage() {
     setProgress(0);
 
     const progressInterval = setInterval(() => {
-      setProgress(prev => prev >= 90 ? prev : prev + Math.random() * 10);
+      setProgress(prev => Math.min(89, prev + Math.random() * 10));
     }, 2000);
 
     const stages = ['generating', 'feedback', 'iterating', 'voting', 'complete'];
@@ -313,17 +313,22 @@ export default function AIToolsPage() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Council failed');
 
+      clearInterval(progressInterval);
+      clearInterval(stageInterval);
+
       setCouncilResult(data.data);
       setGenerationTimeMs(Date.now() - startTime);
       setStage('complete');
       setProgress(100);
+      setLoading(false);
+
+      // Image generation + save run after loading is released (non-blocking for progress bar)
       let imageUrl: string | null = null;
       if (generateImageEnabled) imageUrl = await generateImage();
       await autoSaveProduct(data.data.winner?.content ?? null, imageUrl, data.data.translatedContent ?? undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setStage('');
-    } finally {
       setLoading(false);
       clearInterval(progressInterval);
       clearInterval(stageInterval);
