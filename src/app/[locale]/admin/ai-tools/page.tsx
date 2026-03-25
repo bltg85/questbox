@@ -25,9 +25,33 @@ import {
   Save,
   FileDown,
   Wand2,
+  LayoutTemplate,
+  ChevronRight,
 } from 'lucide-react';
+import { useEffect } from 'react';
 
 type Mode = 'economy' | 'premium' | 'single';
+
+interface JaktMallOption {
+  id: string;
+  namn: string;
+  beskrivning: string | null;
+  steg_typer: string[];
+  rekommenderad_alder: string[];
+  rekommenderad_tid_minuter: number | null;
+}
+
+const STEG_LABELS: Record<string, { label: string; color: string }> = {
+  INTRO:          { label: 'Intro',         color: 'bg-purple-100 text-purple-700' },
+  FINAL:          { label: 'Final',          color: 'bg-yellow-100 text-yellow-700' },
+  SOK:            { label: 'Sökning',        color: 'bg-blue-100 text-blue-700' },
+  PUSSEL_FYSISKT: { label: 'Pussel',         color: 'bg-green-100 text-green-700' },
+  PUSSEL_LOGIK:   { label: 'Logikpussel',   color: 'bg-teal-100 text-teal-700' },
+  GATA:           { label: 'Gåta',           color: 'bg-orange-100 text-orange-700' },
+  VAL:            { label: 'Bildval',        color: 'bg-pink-100 text-pink-700' },
+  LASUPPDRAG:     { label: 'Läsuppdrag',    color: 'bg-indigo-100 text-indigo-700' },
+  MINISPEL:       { label: 'Minispel',       color: 'bg-red-100 text-red-700' },
+};
 
 interface ProposalView {
   provider: string;
@@ -96,7 +120,21 @@ export default function AIToolsPage() {
   const [generateImageEnabled, setGenerateImageEnabled] = useState(false);
   const [publishDirectly, setPublishDirectly] = useState(true);
 
+  // Mall (template) state
+  const [mallar, setMallar] = useState<JaktMallOption[]>([]);
+  const [selectedMallId, setSelectedMallId] = useState<string>('');
+
   const isCouncilMode = mode === 'economy' || mode === 'premium';
+  const selectedMall = mallar.find(m => m.id === selectedMallId) ?? null;
+
+  useEffect(() => {
+    if (type === 'treasure_hunt' && mallar.length === 0) {
+      fetch('/api/jakt-mallar')
+        .then(r => r.json())
+        .then(d => { if (d.success) setMallar(d.data); })
+        .catch(() => {});
+    }
+  }, [type]);
 
   const generateImage = async (): Promise<string | null> => {
     setImageLoading(true);
@@ -132,7 +170,11 @@ export default function AIToolsPage() {
       const res = await fetch('/api/ai/save-product', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, type, theme, ageGroup, difficulty, language: apiLanguage, imageDataUrl, translatedContent: translatedContent ?? null, status }),
+        body: JSON.stringify({
+          content, type, theme, ageGroup, difficulty, language: apiLanguage,
+          imageDataUrl, translatedContent: translatedContent ?? null, status,
+          mallId: type === 'treasure_hunt' && selectedMall ? selectedMall.id : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Failed to save');
@@ -259,6 +301,9 @@ export default function AIToolsPage() {
           location: type === 'treasure_hunt' ? location : undefined,
           quizSubtype: type === 'quiz' ? quizSubtype : undefined,
           additionalInstructions: additionalInstructions || undefined,
+          mallId: type === 'treasure_hunt' && selectedMall ? selectedMall.id : undefined,
+          mallNamn: type === 'treasure_hunt' && selectedMall ? selectedMall.namn : undefined,
+          stegTyper: type === 'treasure_hunt' && selectedMall ? selectedMall.steg_typer : undefined,
         }),
       });
 
@@ -397,26 +442,89 @@ export default function AIToolsPage() {
             />
 
             {type === 'treasure_hunt' && (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Input
-                  label="Number of Clues"
-                  type="number"
-                  min={3}
-                  max={15}
-                  value={numberOfClues}
-                  onChange={(e) => setNumberOfClues(parseInt(e.target.value))}
-                />
-                <Select
-                  label="Location"
-                  options={[
-                    { value: 'indoor', label: 'Indoor' },
-                    { value: 'outdoor', label: 'Outdoor' },
-                    { value: 'mixed', label: 'Mixed' },
-                  ]}
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
-              </div>
+              <>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="Number of Clues"
+                    type="number"
+                    min={3}
+                    max={15}
+                    value={numberOfClues}
+                    onChange={(e) => setNumberOfClues(parseInt(e.target.value))}
+                  />
+                  <Select
+                    label="Location"
+                    options={[
+                      { value: 'indoor', label: 'Indoor' },
+                      { value: 'outdoor', label: 'Outdoor' },
+                      { value: 'mixed', label: 'Mixed' },
+                    ]}
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                  />
+                </div>
+
+                {/* Mall-väljare */}
+                {mallar.length > 0 && (
+                  <div>
+                    <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                      <LayoutTemplate className="h-4 w-4" />
+                      Mall (valfri)
+                    </p>
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMallId('')}
+                        className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
+                          selectedMallId === ''
+                            ? 'border-indigo-400 bg-indigo-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <span className="font-medium text-gray-700">Fri komposition</span>
+                        <span className="ml-2 text-gray-400">— AI väljer steg-typer själv</span>
+                      </button>
+                      {mallar.map(mall => (
+                        <button
+                          key={mall.id}
+                          type="button"
+                          onClick={() => setSelectedMallId(mall.id)}
+                          className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                            selectedMallId === mall.id
+                              ? 'border-indigo-400 bg-indigo-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-800">{mall.namn}</span>
+                            {mall.rekommenderad_tid_minuter && (
+                              <span className="flex items-center gap-1 text-xs text-gray-400">
+                                <Clock className="h-3 w-3" />
+                                {mall.rekommenderad_tid_minuter} min
+                              </span>
+                            )}
+                          </div>
+                          {mall.beskrivning && (
+                            <p className="mt-0.5 text-xs text-gray-500">{mall.beskrivning}</p>
+                          )}
+                          <div className="mt-2 flex flex-wrap items-center gap-1">
+                            {mall.steg_typer.map((typ, i) => (
+                              <span key={i} className="flex items-center gap-0.5">
+                                <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${STEG_LABELS[typ]?.color ?? 'bg-gray-100 text-gray-600'}`}>
+                                  {STEG_LABELS[typ]?.label ?? typ}
+                                </span>
+                                {i < mall.steg_typer.length - 1 && (
+                                  <ChevronRight className="h-3 w-3 text-gray-300" />
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {type === 'quiz' && (
