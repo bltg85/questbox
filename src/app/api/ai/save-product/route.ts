@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createServiceClient();
     const body = await request.json();
-    const { content, type, theme, ageGroup, difficulty, language, imageDataUrl, translatedContent, status = 'draft' } = body;
+    const { content, type, theme, ageGroup, difficulty, language, imageDataUrl, translatedContent, status = 'draft', mallId } = body;
 
     if (!content || !type) {
       return NextResponse.json({ error: 'Missing content or type' }, { status: 400 });
@@ -136,6 +136,7 @@ export async function POST(request: NextRequest) {
         is_ai_generated: true,
         thumbnail_url: thumbnailUrl,
         file_url: fileUrl,
+        mall_id: mallId || null,
         tags: [theme, language].filter(Boolean),
         ai_generation_data: {
           provider: 'council',
