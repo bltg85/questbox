@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { runCouncil } from '@/lib/ai/council';
 import type { CouncilInput } from '@/lib/ai/council';
 
-export const maxDuration = 300; // 5 minutes (requires Vercel Pro; use 60 on Hobby)
+export const maxDuration = 60; // Vercel Hobby max
 
 const CouncilRequestSchema = z.object({
   type: z.enum(['treasure_hunt', 'quiz', 'diploma', 'party_game', 'escape_game']),
@@ -18,6 +18,10 @@ const CouncilRequestSchema = z.object({
   numberOfQuestions: z.number().optional(),
   location: z.string().optional(),
   quizSubtype: z.enum(['standard', 'music']).optional(),
+  // Treasure hunt: mall & step composition
+  mallId: z.string().optional(),
+  mallNamn: z.string().optional(),
+  stegTyper: z.array(z.string()).optional(),
 });
 
 export async function POST(request: NextRequest) {
