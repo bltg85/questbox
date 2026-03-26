@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "QuestBox",
+    "appName": "SuitedPlay",
     "tagline": "Digitala produkter för oförglömliga stunder",
     "home": "Hem",
     "products": "Produkter",
@@ -128,7 +128,7 @@
     "terms": "Användarvillkor",
     "privacy": "Integritetspolicy",
     "cookies": "Cookiepolicy",
-    "copyright": "© {year} QuestBox. Alla rättigheter förbehållna."
+    "copyright": "© {year} SuitedPlay. Alla rättigheter förbehållna."
   },
   "admin": {
     "dashboard": "Översikt",
