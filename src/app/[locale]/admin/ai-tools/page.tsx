@@ -273,10 +273,11 @@ export default function AIToolsPage() {
     setProgress(0);
 
     const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(89, prev + Math.random() * 10));
+      setProgress(prev => Math.min(75, prev + Math.random() * 10));
     }, 2000);
 
-    const stages = ['generating', 'feedback', 'iterating', 'voting', 'complete'];
+    // 'complete' excluded — only set when real API responds, not by fake timer
+    const stages = ['generating', 'feedback', 'iterating', 'voting'];
     let stageIndex = 0;
     const stageInterval = setInterval(() => {
       stageIndex++;
