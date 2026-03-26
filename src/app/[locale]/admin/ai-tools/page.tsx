@@ -311,6 +311,13 @@ export default function AIToolsPage() {
       clearInterval(progressInterval);
       clearInterval(stageInterval);
 
+      // Guard: Vercel kan returnera HTML-felsida (t.ex. 504 timeout) istället för JSON
+      const contentType = res.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        if (res.status === 504) throw new Error('Council tog för lång tid (>60s). Prova Economy-läge eller kortare jakt.');
+        throw new Error(`Serverfel (${res.status}) — försök igen`);
+      }
+
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Council failed');
 
