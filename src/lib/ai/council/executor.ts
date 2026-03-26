@@ -100,104 +100,123 @@ export async function runCouncil(
     throw new Error('Not enough successful generations to continue council');
   }
 
-  // ============== ROUND 2: FEEDBACK (parallel) ==============
-  report('feedback', 40, 'Gathering feedback from all providers...');
+  // Economy mode: skip feedback + iteration (6 calls total → fits in 60s)
+  // Premium mode: full 4-round council (15 calls, needs >60s — use with caution on Hobby)
+  const isEconomy = (input.modelTier ?? 'economy') === 'economy';
 
-  const baseFeedbackPrompt = getFeedbackSystemPrompt(input);
-  const feedbackPairs = proposals.flatMap((reviewer) =>
-    proposals
-      .filter((target) => target.provider !== reviewer.provider)
-      .map((target) => ({ reviewer, target }))
-  );
+  let allFeedback: FeedbackItem[] = [];
+  let iteratedProposals: IteratedProposal[];
 
-  const feedbackResults = await Promise.allSettled(
-    feedbackPairs.map(({ reviewer, target }) =>
-      generateWithAI({
-        systemPrompt: buildSystemPrompt(agentMap[reviewer.provider], baseFeedbackPrompt),
-        userPrompt: `Review this ${input.type}:\n\n${JSON.stringify(target.content, null, 2)}`,
-        provider: reviewer.provider,
-        modelTier: input.modelTier,
-        operation: 'feedback',
-        context: 'council',
-      }).then((response) => {
-        const feedback = parseJSON(response.content);
-        return {
-          fromProvider: reviewer.provider,
-          toProvider: target.provider,
-          strengths: feedback.strengths || [],
-          improvements: feedback.improvements || [],
-          specificSuggestions: feedback.specificSuggestions || [],
-          qualityScore: typeof feedback.qualityScore === 'number'
-            ? Math.min(100, Math.max(1, Math.round(feedback.qualityScore)))
-            : 50,
-        } as FeedbackItem;
-      })
-    )
-  );
+  if (isEconomy) {
+    // Economy: wrap proposals directly as IteratedProposals, skip feedback + iteration
+    report('voting', 60, 'Economy mode: skipping feedback & iteration, going straight to vote...');
+    iteratedProposals = proposals.map((p) => ({
+      ...p,
+      version: 1,
+      feedbackReceived: [],
+      changesApplied: [],
+    }));
+  } else {
+    // ============== ROUND 2: FEEDBACK (parallel, premium only) ==============
+    report('feedback', 40, 'Gathering feedback from all providers...');
 
-  const allFeedback: FeedbackItem[] = feedbackResults
-    .filter((r): r is PromiseFulfilledResult<FeedbackItem> => r.status === 'fulfilled')
-    .map((r) => r.value);
-
-  feedbackResults
-    .filter((r) => r.status === 'rejected')
-    .forEach((r, i) =>
-      console.error(`Feedback failed for pair ${i}:`, (r as PromiseRejectedResult).reason)
+    const baseFeedbackPrompt = getFeedbackSystemPrompt(input);
+    const feedbackPairs = proposals.flatMap((reviewer) =>
+      proposals
+        .filter((target) => target.provider !== reviewer.provider)
+        .map((target) => ({ reviewer, target }))
     );
 
-  // ============== ROUND 3: ITERATE (parallel) ==============
-  report('iterating', 60, 'Each provider is improving their version...');
-
-  const baseIterationPrompt = getIterationSystemPrompt(input);
-
-  const iterationResults = await Promise.allSettled(
-    proposals.map((proposal) => {
-      const feedbackForThis = allFeedback.filter((f) => f.toProvider === proposal.provider);
-      const feedbackSummary = feedbackForThis
-        .map(
-          (f) =>
-            `Feedback from ${f.fromProvider}:\n` +
-            `Strengths: ${f.strengths.join(', ')}\n` +
-            `Improvements: ${f.improvements.join(', ')}\n` +
-            `Suggestions: ${f.specificSuggestions.join(', ')}`
-        )
-        .join('\n\n');
-
-      return generateWithAI({
-        systemPrompt: buildSystemPrompt(agentMap[proposal.provider], baseIterationPrompt),
-        userPrompt: `Your original ${input.type}:\n${JSON.stringify(proposal.content, null, 2)}\n\nFeedback received:\n${feedbackSummary}\n\nPlease improve your content based on this feedback.`,
-        provider: proposal.provider,
-        modelTier: input.modelTier,
-        operation: 'iterate',
-        context: 'council',
-      })
-        .then((response) => {
-          const improved = parseJSON(response.content);
+    const feedbackResults = await Promise.allSettled(
+      feedbackPairs.map(({ reviewer, target }) =>
+        generateWithAI({
+          systemPrompt: buildSystemPrompt(agentMap[reviewer.provider], baseFeedbackPrompt),
+          userPrompt: `Review this ${input.type}:\n\n${JSON.stringify(target.content, null, 2)}`,
+          provider: reviewer.provider,
+          modelTier: input.modelTier,
+          operation: 'feedback',
+          context: 'council',
+        }).then((response) => {
+          const feedback = parseJSON(response.content);
           return {
-            provider: proposal.provider,
-            content: improved.changes_made ? { ...improved, changes_made: undefined } : improved,
-            generatedAt: new Date().toISOString(),
-            version: 2,
-            feedbackReceived: feedbackForThis,
-            changesApplied: improved.changes_made || ['Improvements applied based on feedback'],
-          } as IteratedProposal;
+            fromProvider: reviewer.provider,
+            toProvider: target.provider,
+            strengths: feedback.strengths || [],
+            improvements: feedback.improvements || [],
+            specificSuggestions: feedback.specificSuggestions || [],
+            qualityScore: typeof feedback.qualityScore === 'number'
+              ? Math.min(100, Math.max(1, Math.round(feedback.qualityScore)))
+              : 50,
+            stegTypFeedback: feedback.stegTypFeedback ?? undefined,
+          } as FeedbackItem;
         })
-        .catch((error) => {
-          console.error(`Iteration failed for ${proposal.provider}:`, error);
-          const feedbackForThis = allFeedback.filter((f) => f.toProvider === proposal.provider);
-          return {
-            ...proposal,
-            version: 1,
-            feedbackReceived: feedbackForThis,
-            changesApplied: [],
-          } as IteratedProposal;
-        });
-    })
-  );
+      )
+    );
 
-  const iteratedProposals: IteratedProposal[] = iterationResults
-    .filter((r): r is PromiseFulfilledResult<IteratedProposal> => r.status === 'fulfilled')
-    .map((r) => r.value);
+    allFeedback = feedbackResults
+      .filter((r): r is PromiseFulfilledResult<FeedbackItem> => r.status === 'fulfilled')
+      .map((r) => r.value);
+
+    feedbackResults
+      .filter((r) => r.status === 'rejected')
+      .forEach((r, i) =>
+        console.error(`Feedback failed for pair ${i}:`, (r as PromiseRejectedResult).reason)
+      );
+
+    // ============== ROUND 3: ITERATE (parallel, premium only) ==============
+    report('iterating', 60, 'Each provider is improving their version...');
+
+    const baseIterationPrompt = getIterationSystemPrompt(input);
+
+    const iterationResults = await Promise.allSettled(
+      proposals.map((proposal) => {
+        const feedbackForThis = allFeedback.filter((f) => f.toProvider === proposal.provider);
+        const feedbackSummary = feedbackForThis
+          .map(
+            (f) =>
+              `Feedback from ${f.fromProvider}:\n` +
+              `Strengths: ${f.strengths.join(', ')}\n` +
+              `Improvements: ${f.improvements.join(', ')}\n` +
+              `Suggestions: ${f.specificSuggestions.join(', ')}`
+          )
+          .join('\n\n');
+
+        return generateWithAI({
+          systemPrompt: buildSystemPrompt(agentMap[proposal.provider], baseIterationPrompt),
+          userPrompt: `Your original ${input.type}:\n${JSON.stringify(proposal.content, null, 2)}\n\nFeedback received:\n${feedbackSummary}\n\nPlease improve your content based on this feedback.`,
+          provider: proposal.provider,
+          modelTier: input.modelTier,
+          operation: 'iterate',
+          context: 'council',
+        })
+          .then((response) => {
+            const improved = parseJSON(response.content);
+            return {
+              provider: proposal.provider,
+              content: improved.changes_made ? { ...improved, changes_made: undefined } : improved,
+              generatedAt: new Date().toISOString(),
+              version: 2,
+              feedbackReceived: feedbackForThis,
+              changesApplied: improved.changes_made || ['Improvements applied based on feedback'],
+            } as IteratedProposal;
+          })
+          .catch((error) => {
+            console.error(`Iteration failed for ${proposal.provider}:`, error);
+            const feedbackForThis = allFeedback.filter((f) => f.toProvider === proposal.provider);
+            return {
+              ...proposal,
+              version: 1,
+              feedbackReceived: feedbackForThis,
+              changesApplied: [],
+            } as IteratedProposal;
+          });
+      })
+    );
+
+    iteratedProposals = iterationResults
+      .filter((r): r is PromiseFulfilledResult<IteratedProposal> => r.status === 'fulfilled')
+      .map((r) => r.value);
+  }
 
   // ============== ROUND 4: VOTE (parallel) ==============
   report('voting', 80, 'Providers are voting on the best version...');
