@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { runCouncil } from '@/lib/ai/council';
 import type { CouncilInput } from '@/lib/ai/council';
 
-export const maxDuration = 60; // Vercel Hobby max
+export const maxDuration = 300;
 
 const CouncilRequestSchema = z.object({
   type: z.enum(['treasure_hunt', 'quiz', 'diploma', 'party_game', 'escape_game']),
