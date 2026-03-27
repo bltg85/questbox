@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { AIProvider } from '@/types';
 import { logUsage, logImageUsage } from './usage';
+import { logError } from './errors';
 
 // Initialize clients
 const openai = process.env.OPENAI_API_KEY
@@ -66,13 +67,19 @@ async function generateWithOpenAI(
   const defaultModel = modelTier === 'economy' ? 'gpt-5-mini' : 'gpt-5.2';
   const model = process.env.OPENAI_MODEL || defaultModel;
 
-  const response = await openai.chat.completions.create({
-    model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-  });
+  let response;
+  try {
+    response = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    });
+  } catch (err: any) {
+    logError({ errorType: 'text_generation_failure', errorMessage: err?.message ?? String(err), context, model, provider: 'openai' });
+    throw err;
+  }
 
   // Log usage (fire-and-forget)
   logUsage({
@@ -105,12 +112,18 @@ async function generateWithAnthropic(
   const defaultModel = modelTier === 'economy' ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
   const model = process.env.ANTHROPIC_MODEL || defaultModel;
 
-  const response = await anthropic.messages.create({
-    model,
-    max_tokens: 4096,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userPrompt }],
-  });
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model,
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+  } catch (err: any) {
+    logError({ errorType: 'text_generation_failure', errorMessage: err?.message ?? String(err), context, model, provider: 'anthropic' });
+    throw err;
+  }
 
   // Log usage (fire-and-forget)
   logUsage({
@@ -145,14 +158,20 @@ async function generateWithGoogle(
   const modelName = process.env.GOOGLE_AI_MODEL || defaultModel;
   const model = google.getGenerativeModel({ model: modelName });
 
-  const response = await model.generateContent({
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
-      },
-    ],
-  });
+  let response;
+  try {
+    response = await model.generateContent({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+        },
+      ],
+    });
+  } catch (err: any) {
+    logError({ errorType: 'text_generation_failure', errorMessage: err?.message ?? String(err), context, model: modelName, provider: 'google' });
+    throw err;
+  }
 
   // Log usage (fire-and-forget)
   const meta = response.response.usageMetadata;
@@ -202,9 +221,11 @@ export async function generateProductImage(prompt: string): Promise<string | nul
 
     const response = await Promise.race([generatePromise, timeoutPromise]);
 
-    const imagePart = response.response.candidates?.[0]?.content?.parts?.find(
-      (part: any) => part.inlineData
-    );
+    const candidates = response.response.candidates;
+    const parts = candidates?.[0]?.content?.parts ?? [];
+    console.log(`[Image] ${modelName} response: ${candidates?.length ?? 0} candidates, ${parts.length} parts, types: ${parts.map((p: any) => p.inlineData ? 'image' : p.text ? 'text' : 'unknown').join(', ')}`);
+
+    const imagePart = parts.find((part: any) => part.inlineData);
 
     if (imagePart?.inlineData) {
       return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
@@ -226,6 +247,7 @@ export async function generateProductImage(prompt: string): Promise<string | nul
       const isRetryable = status === 503 || status === 429 || error?.message?.includes('timed out');
       if (!isRetryable) throw error;
       console.warn(`[Image] ${primaryModel} failed (${status ?? 'timeout'}), falling back to ${fallbackModel}`);
+      logError({ errorType: 'image_generation_failure', errorMessage: error?.message ?? String(error), context: 'generate-image', model: primaryModel, provider: 'google', metadata: { status, is_primary: true } });
     }
 
     try {
@@ -234,6 +256,7 @@ export async function generateProductImage(prompt: string): Promise<string | nul
       return fallback;
     } catch (error: any) {
       console.error(`[Image] Fallback model ${fallbackModel} also failed:`, error?.message);
+      logError({ errorType: 'image_generation_failure', errorMessage: error?.message ?? String(error), context: 'generate-image', model: fallbackModel, provider: 'google', metadata: { is_fallback: true } });
       return null;
     }
   };
