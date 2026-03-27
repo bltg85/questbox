@@ -248,7 +248,7 @@ export async function generateProductImage(prompt: string): Promise<string | nul
       console.warn(`[Image] ${primaryModel} returned no image, falling back to ${fallbackModel}`);
     } catch (error: any) {
       const status = error?.status ?? error?.httpStatus;
-      const isRetryable = status === 503 || status === 429 || error?.message?.includes('timed out');
+      const isRetryable = status >= 500 || status === 429 || error?.message?.includes('timed out');
       if (!isRetryable) throw error;
       console.warn(`[Image] ${primaryModel} failed (${status ?? 'timeout'}), falling back to ${fallbackModel}`);
       logError({ errorType: 'image_generation_failure', errorMessage: error?.message ?? String(error), context: 'generate-image', model: primaryModel, provider: 'google', metadata: { status, is_primary: true } });
