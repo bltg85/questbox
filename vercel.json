@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/process-jobs",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/check-errors",
       "schedule": "0 8 * * *"
     },

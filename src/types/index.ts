@@ -242,6 +242,26 @@ export interface DownloadToken {
   product?: Product;
 }
 
+// Job Queue
+export type JobStatus = 'pending' | 'running' | 'complete' | 'failed';
+export type JobType = 'council' | 'illustrate' | 'validate_all' | 'review_loop' | 'evolve_agent';
+
+export interface Job {
+  id: string;
+  type: JobType;
+  status: JobStatus;
+  step: string | null;
+  input: Record<string, unknown>;
+  state?: Record<string, unknown>;
+  result?: Record<string, unknown> | null;
+  error: string | null;
+  progress: number;
+  progress_msg: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
 // API Response types
 export interface ApiResponse<T> {
   success: boolean;
