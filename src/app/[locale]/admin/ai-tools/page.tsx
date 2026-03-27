@@ -682,7 +682,7 @@ export default function AIToolsPage() {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
 
         {/* ── Left: Config ─────────────────────────────────────────────── */}
         <Card className="h-fit">
@@ -932,7 +932,7 @@ export default function AIToolsPage() {
                     {stepErrors.generate && (
                       <p className="mb-3 rounded-lg bg-red-50 p-2 text-xs text-red-600">{stepErrors.generate}</p>
                     )}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       {agentCards.map((agent) => (
                         <AgentCardUI
                           key={agent.id}
@@ -1062,14 +1062,14 @@ export default function AIToolsPage() {
 
                       {/* Winner banner */}
                       <div className="mb-4 rounded-2xl bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 p-4">
-                        <div className="flex items-center gap-3">
-                          <Trophy className="h-8 w-8 text-yellow-500 flex-shrink-0" />
-                          <div>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Trophy className="h-7 w-7 shrink-0 text-yellow-500" />
+                          <div className="min-w-0 flex-1">
                             <p className="text-xs font-medium text-yellow-700 uppercase tracking-wide">Vinnare</p>
-                            <p className="text-xl font-bold text-gray-900">{agentNames[winner.provider] || winner.provider}</p>
+                            <p className="truncate text-lg font-bold text-gray-900">{agentNames[winner.provider] || winner.provider}</p>
                           </div>
                           {runnerUp && (
-                            <div className="ml-auto text-right">
+                            <div className="shrink-0 text-right">
                               <p className="text-xs text-gray-400">Tvåa</p>
                               <p className="text-sm font-semibold text-gray-600 flex items-center gap-1">
                                 <Medal className="h-4 w-4 text-slate-400" />
@@ -1086,25 +1086,25 @@ export default function AIToolsPage() {
                           const voterAgent = agentCards.find(a => a.provider === vote.voter);
                           const votedAgent = agentCards.find(a => a.provider === vote.votedFor);
                           return (
-                            <div key={i} className="flex items-start gap-3 rounded-xl bg-gray-50 border border-gray-100 p-3 text-xs">
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {voterAgent && <AgentAvatar agent={voterAgent} size="sm" />}
-                                <ArrowRight className="h-3 w-3 text-gray-400" />
-                                {votedAgent && <AgentAvatar agent={votedAgent} size="sm" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-700 truncate">
+                            <div key={i} className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-xs">
+                              <div className="mb-1.5 flex items-center gap-2">
+                                <div className="flex shrink-0 items-center gap-1">
+                                  {voterAgent && <AgentAvatar agent={voterAgent} size="sm" />}
+                                  <ArrowRight className="h-3 w-3 text-gray-400" />
+                                  {votedAgent && <AgentAvatar agent={votedAgent} size="sm" />}
+                                </div>
+                                <p className="min-w-0 truncate font-medium text-gray-700">
                                   {agentNames[vote.voter] || vote.voter} röstade på {agentNames[vote.votedFor] || vote.votedFor}
                                 </p>
-                                <p className="mt-0.5 text-gray-500 line-clamp-2">{vote.reasoning}</p>
-                                <div className="mt-1.5 flex gap-1 flex-wrap">
-                                  {Object.entries(vote.scores).map(([k, v]) => (
-                                    <span key={k} className={`rounded px-1.5 py-0.5 text-[9px] font-medium
-                                      ${v >= 8 ? 'bg-green-100 text-green-700' : v >= 6 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                                      {k === 'overall' ? '⭐' : k === 'creativity' ? '🎨' : k === 'ageAppropriateness' ? '👶' : k === 'engagement' ? '🔥' : '📖'} {v}
-                                    </span>
-                                  ))}
-                                </div>
+                              </div>
+                              <p className="mb-1.5 text-gray-500 line-clamp-2">{vote.reasoning}</p>
+                              <div className="flex flex-wrap gap-1">
+                                {Object.entries(vote.scores).map(([k, v]) => (
+                                  <span key={k} className={`rounded px-1.5 py-0.5 text-[9px] font-medium
+                                    ${v >= 8 ? 'bg-green-100 text-green-700' : v >= 6 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                                    {k === 'overall' ? '⭐' : k === 'creativity' ? '🎨' : k === 'ageAppropriateness' ? '👶' : k === 'engagement' ? '🔥' : '📖'} {v}
+                                  </span>
+                                ))}
                               </div>
                             </div>
                           );
@@ -1163,7 +1163,7 @@ export default function AIToolsPage() {
                     <div>
                       <p className="mb-1 text-xs font-medium text-gray-600">Vinnande innehåll</p>
                       <div className="max-h-48 overflow-auto rounded-xl bg-gray-900 p-3">
-                        <pre className="text-xs text-gray-100">{JSON.stringify(winner.content, null, 2)}</pre>
+                        <pre className="text-xs text-gray-100 whitespace-pre-wrap break-words">{JSON.stringify(winner.content, null, 2)}</pre>
                       </div>
                     </div>
 
