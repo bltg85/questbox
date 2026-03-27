@@ -71,7 +71,7 @@ async function generateWithOpenAI(
   try {
     response = await openai.chat.completions.create({
       model,
-      max_tokens: 4096,
+      max_completion_tokens: 4096,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -155,7 +155,7 @@ async function generateWithGoogle(
     throw new Error('Google AI not configured');
   }
 
-  const defaultModel = modelTier === 'economy' ? 'gemini-2.0-flash' : 'gemini-2.5-pro';
+  const defaultModel = modelTier === 'economy' ? 'gemini-2.0-flash-lite' : 'gemini-2.5-pro';
   const modelName = process.env.GOOGLE_AI_MODEL || defaultModel;
   const model = google.getGenerativeModel({ model: modelName });
 
