@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import type { AIProvider } from '@/types';
 import { logUsage, logImageUsage } from './usage';
 import { logError } from './errors';
@@ -16,6 +17,11 @@ const anthropic = process.env.ANTHROPIC_API_KEY
 
 const google = process.env.GOOGLE_AI_API_KEY
   ? new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY)
+  : null;
+
+// New SDK for image generation
+const googleGenAI = process.env.GOOGLE_AI_API_KEY
+  ? new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY })
   : null;
 
 export interface AIGenerationRequest {
@@ -202,10 +208,10 @@ export function getAvailableProviders(): AIProvider[] {
 
 // Returns a base64 data URL or null if unavailable
 export async function generateProductImage(prompt: string): Promise<string | null> {
-  if (!google) return null;
+  if (!googleGenAI) return null;
 
-  const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview'; // Nano Banana 2 (fast)
-  const fallbackModel = 'gemini-3-pro-image-preview'; // Nano Banana Pro (slower, fallback)
+  const primaryModel = process.env.GOOGLE_AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview';
+  const fallbackModel = 'gemini-3-pro-image-preview';
 
   const tryGenerate = async (modelName: string, timeoutMs = 25_000): Promise<string | null> => {
     const controller = new AbortController();
@@ -215,20 +221,18 @@ export async function generateProductImage(prompt: string): Promise<string | nul
     }, timeoutMs);
 
     try {
-      const model = google.getGenerativeModel({ model: modelName });
-      const response = await model.generateContent(
-        {
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } as any,
+      const response = await googleGenAI.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          responseModalities: ['TEXT', 'IMAGE'],
         },
-        { signal: controller.signal } as any
-      );
+      });
 
-      const candidates = response.response.candidates;
-      const parts = candidates?.[0]?.content?.parts ?? [];
-      console.log(`[Image] ${modelName}: ${candidates?.length ?? 0} candidates, ${parts.length} parts — ${parts.map((p: any) => p.inlineData ? 'image' : p.text ? 'text' : '?').join(', ')}`);
+      const parts = response.candidates?.[0]?.content?.parts ?? [];
+      console.log(`[Image] ${modelName}: ${parts.length} parts — ${parts.map((p: any) => p.inlineData ? 'image' : p.text ? 'text' : '?').join(', ')}`);
 
-      const imagePart = parts.find((part: any) => part.inlineData);
+      const imagePart = parts.find((p: any) => p.inlineData);
       return imagePart?.inlineData
         ? `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`
         : null;
@@ -248,7 +252,7 @@ export async function generateProductImage(prompt: string): Promise<string | nul
       console.warn(`[Image] ${primaryModel} returned no image, falling back to ${fallbackModel}`);
     } catch (error: any) {
       const status = error?.status ?? error?.httpStatus;
-      const isRetryable = status >= 500 || status === 429 || error?.message?.includes('timed out');
+      const isRetryable = status >= 500 || status === 429 || error?.message?.includes('timed out') || error?.name === 'AbortError';
       if (!isRetryable) throw error;
       console.warn(`[Image] ${primaryModel} failed (${status ?? 'timeout'}), falling back to ${fallbackModel}`);
       logError({ errorType: 'image_generation_failure', errorMessage: error?.message ?? String(error), context: 'generate-image', model: primaryModel, provider: 'google', metadata: { status, is_primary: true } });
