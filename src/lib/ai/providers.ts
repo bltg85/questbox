@@ -207,30 +207,33 @@ export async function generateProductImage(prompt: string): Promise<string | nul
   const fallbackModel = 'gemini-3-pro-image-preview'; // Nano Banana Pro (slower, fallback)
 
   const tryGenerate = async (modelName: string, timeoutMs = 25_000): Promise<string | null> => {
-    const model = google.getGenerativeModel({ model: modelName });
-    const generatePromise = model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseModalities: ['TEXT', 'IMAGE'],
-      } as any,
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      console.warn(`[Image] ${modelName} aborted after ${timeoutMs}ms`);
+    }, timeoutMs);
 
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Model ${modelName} timed out after ${timeoutMs}ms`)), timeoutMs)
-    );
+    try {
+      const model = google.getGenerativeModel({ model: modelName });
+      const response = await model.generateContent(
+        {
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } as any,
+        },
+        { signal: controller.signal } as any
+      );
 
-    const response = await Promise.race([generatePromise, timeoutPromise]);
+      const candidates = response.response.candidates;
+      const parts = candidates?.[0]?.content?.parts ?? [];
+      console.log(`[Image] ${modelName}: ${candidates?.length ?? 0} candidates, ${parts.length} parts — ${parts.map((p: any) => p.inlineData ? 'image' : p.text ? 'text' : '?').join(', ')}`);
 
-    const candidates = response.response.candidates;
-    const parts = candidates?.[0]?.content?.parts ?? [];
-    console.log(`[Image] ${modelName} response: ${candidates?.length ?? 0} candidates, ${parts.length} parts, types: ${parts.map((p: any) => p.inlineData ? 'image' : p.text ? 'text' : 'unknown').join(', ')}`);
-
-    const imagePart = parts.find((part: any) => part.inlineData);
-
-    if (imagePart?.inlineData) {
-      return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+      const imagePart = parts.find((part: any) => part.inlineData);
+      return imagePart?.inlineData
+        ? `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`
+        : null;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    return null;
   };
 
   const runWithFallback = async (): Promise<string | null> => {
