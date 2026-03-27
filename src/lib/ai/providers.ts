@@ -64,7 +64,7 @@ async function generateWithOpenAI(
     throw new Error('OpenAI not configured');
   }
 
-  const defaultModel = modelTier === 'economy' ? 'gpt-5.4-nano' : 'gpt-5.2';
+  const defaultModel = modelTier === 'economy' ? 'gpt-5.4-nano' : 'gpt-5.4';
   const model = process.env.OPENAI_MODEL || defaultModel;
 
   let response;
@@ -110,7 +110,7 @@ async function generateWithAnthropic(
     throw new Error('Anthropic not configured');
   }
 
-  const defaultModel = modelTier === 'economy' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6';
+  const defaultModel = modelTier === 'economy' ? 'claude-haiku-4-5-20251001' : 'claude-opus-4-6';
   const model = process.env.ANTHROPIC_MODEL || defaultModel;
 
   let response;
@@ -155,7 +155,7 @@ async function generateWithGoogle(
     throw new Error('Google AI not configured');
   }
 
-  const defaultModel = modelTier === 'economy' ? 'gemini-3.1-flash-lite-preview' : 'gemini-2.5-pro';
+  const defaultModel = modelTier === 'economy' ? 'gemini-3.1-flash-lite-preview' : 'gemini-3.1-pro-preview';
   const modelName = process.env.GOOGLE_AI_MODEL || defaultModel;
   const model = google.getGenerativeModel({ model: modelName });
 
