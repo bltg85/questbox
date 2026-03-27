@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     if (!imageDataUrl) {
       return NextResponse.json(
-        { success: false, error: 'Image generation not available (Google AI not configured or model does not support images)' },
+        { success: false, error: 'Bildgenerering misslyckades — Googles AI-modell är tillfälligt otillgänglig (503). Försök igen om en stund.' },
         { status: 503 }
       );
     }
