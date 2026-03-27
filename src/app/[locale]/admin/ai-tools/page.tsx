@@ -32,7 +32,10 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
   User,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -409,6 +412,9 @@ export default function AIToolsPage() {
   // Error per step
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
 
+  // UI layout
+  const [configCollapsed, setConfigCollapsed] = useState(false);
+
   const isCouncilMode = mode === 'economy' || mode === 'premium';
   const selectedMall = mallar.find(m => m.id === selectedMallId) ?? null;
   const councilDone = voteStatus === 'done';
@@ -674,20 +680,32 @@ export default function AIToolsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">AI Tools</h1>
-        {generationTimeMs !== null && (
-          <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
-            <Clock className="h-3.5 w-3.5" />
-            {(generationTimeMs / 1000).toFixed(1)}s
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {generationTimeMs !== null && (
+            <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
+              <Clock className="h-3.5 w-3.5" />
+              {(generationTimeMs / 1000).toFixed(1)}s
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+      <div className={`grid gap-6 transition-all duration-300 ${configCollapsed ? 'grid-cols-1' : 'lg:grid-cols-[300px_1fr]'}`}>
 
         {/* ── Left: Config ─────────────────────────────────────────────── */}
-        <Card className="h-fit">
+        <div className={`h-fit ${configCollapsed ? 'hidden' : ''}`}>
+        <Card>
           <CardHeader>
-            <CardTitle className="text-base">Konfigurera</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Konfigurera</CardTitle>
+              <button
+                onClick={() => setConfigCollapsed(true)}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                title="Dölj konfiguration"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <Select
@@ -900,9 +918,20 @@ export default function AIToolsPage() {
             )}
           </CardContent>
         </Card>
+        </div>
 
         {/* ── Right: Workspace ─────────────────────────────────────────── */}
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
+          {configCollapsed && (
+            <button
+              onClick={() => setConfigCollapsed(false)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 shadow-sm hover:bg-gray-50 hover:text-gray-700 transition-colors"
+              title="Visa konfiguration"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+              Visa konfiguration
+            </button>
+          )}
 
           {/* ── Council steps ──────────────────────────────────────────── */}
           {isCouncilMode && (
