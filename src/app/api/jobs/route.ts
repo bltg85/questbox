@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 
 const EnqueueSchema = z.object({
   type: z.enum(['council', 'illustrate', 'validate_all', 'review_loop', 'evolve_agent']),
-  input: z.record(z.unknown()),
+  input: z.record(z.string(), z.unknown()),
 });
 
 // POST /api/jobs — lägg till ett nytt jobb i kön
