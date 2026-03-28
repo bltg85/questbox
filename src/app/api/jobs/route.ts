@@ -26,6 +26,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    // Kicka igång första steget direkt (self-chain, fire and forget)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const secret = process.env.CRON_SECRET ?? '';
+    fetch(`${appUrl}/api/cron/process-jobs`, {
+      method: 'GET',
+      headers: { authorization: `Bearer ${secret}` },
+    }).catch(() => {});
+
     return NextResponse.json({ success: true, data: job }, { status: 201 });
   } catch (err) {
     return NextResponse.json(
