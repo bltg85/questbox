@@ -1,11 +1,12 @@
 /**
  * jobs/runner.ts
  *
- * Plockar upp ett pending/running council-jobb och kör nästa steg.
- * Anropas av /api/cron/process-jobs var 60:e sekund.
+ * Plockar upp ett pending council-jobb och kör nästa steg.
+ * Varje steg triggar nästa via self-chain (fire-and-forget fetch).
+ * Vercel Cron (daglig) är ett säkerhetsnät för fastnade jobb.
  *
  * Steg-ordning för 'council':
- *   pending → generate → feedback → iterate → vote → complete
+ *   pending → generate → feedback → iterate → vote → finalize → complete
  *
  * Varje steg tar < 40s (parallella LLM-anrop), klart inom Vercel Hobby 60s-limit.
  */
@@ -53,6 +54,20 @@ function msgForStep(step: CouncilStep): string {
   return map[step];
 }
 
+// ─── Self-chain: trigga nästa steg direkt (fire and forget) ──────────────────
+
+function triggerNextStep(): void {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const secret = process.env.CRON_SECRET ?? '';
+
+  fetch(`${appUrl}/api/cron/process-jobs`, {
+    method: 'GET',
+    headers: { authorization: `Bearer ${secret}` },
+  }).catch((err) => {
+    console.warn('[JobRunner] Self-chain trigger failed (non-fatal):', err?.message);
+  });
+}
+
 // ─── Huvud-runner ────────────────────────────────────────────────────────────
 
 export async function processNextJob(): Promise<{ processed: boolean; jobId?: string; step?: string; error?: string }> {
@@ -74,7 +89,7 @@ export async function processNextJob(): Promise<{ processed: boolean; jobId?: st
 
   if (!job) return { processed: false };
 
-  // Lås jobbet (status → running, step → generate)
+  // Lås jobbet (status → running)
   const step: CouncilStep = nextStep(job.step as CouncilStep | null);
 
   await supabase
@@ -114,7 +129,6 @@ export async function processNextJob(): Promise<{ processed: boolean; jobId?: st
     } else if (step === 'finalize') {
       const { voteResult, agentNames, councilRunId } = nextState;
 
-      // Eventuell översättning
       let translatedContent = null;
       if (input.bilingualMode) {
         try {
@@ -155,14 +169,19 @@ export async function processNextJob(): Promise<{ processed: boolean; jobId?: st
       .from('jobs')
       .update({
         status:       isComplete ? 'complete' : 'pending',
-        step:         isComplete ? 'finalize' : step,
+        step:         step,
         state:        nextState,
         result:       finalResult,
         progress:     progressForStep(step),
-        progress_msg: isComplete ? 'Klart!' : msgForStep(step),
+        progress_msg: isComplete ? 'Klart! 🎉' : msgForStep(step),
         completed_at: isComplete ? new Date().toISOString() : null,
       })
       .eq('id', job.id);
+
+    // ── Self-chain: trigga nästa steg direkt (om inte klart) ──
+    if (!isComplete) {
+      triggerNextStep();
+    }
 
     return { processed: true, jobId: job.id, step };
 
