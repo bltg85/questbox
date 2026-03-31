@@ -386,11 +386,18 @@ export default function AIToolsPage() {
   const [runnerUp, setRunnerUp] = useState<IteratedProposal | null>(null);
   const [translatedContent, setTranslatedContent] = useState<any | null>(null);
 
-  // Step statuses
+  // Step statuses (behålls för bakåtkompatibilitet med AgentCardUI)
   const [generateStatus, setGenerateStatus] = useState<StepStatus>('idle');
   const [feedbackStatus, setFeedbackStatus] = useState<StepStatus>('idle');
   const [iterateStatus, setIterateStatus] = useState<StepStatus>('idle');
   const [voteStatus, setVoteStatus] = useState<StepStatus>('idle');
+
+  // Job queue (async council)
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobRunning, setJobRunning] = useState(false);
+  const [jobProgress, setJobProgress] = useState(0);
+  const [jobProgressMsg, setJobProgressMsg] = useState('');
+  const [jobError, setJobError] = useState<string | null>(null);
 
   // Image + save
   const [productImage, setProductImage] = useState<string | null>(null);
@@ -411,7 +418,7 @@ export default function AIToolsPage() {
 
   const isCouncilMode = mode === 'economy' || mode === 'premium';
   const selectedMall = mallar.find(m => m.id === selectedMallId) ?? null;
-  const councilDone = voteStatus === 'done';
+  const councilDone = winner !== null;
 
   // Load templates
   useEffect(() => {
@@ -429,6 +436,35 @@ export default function AIToolsPage() {
       .then(d => { if (d.success) setAgentCards(d.data); })
       .catch(() => {});
   }, [mode, isCouncilMode]);
+
+  // Poll job status var 3:e sekund
+  useEffect(() => {
+    if (!jobId || !jobRunning) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}`);
+        const data = await res.json();
+        if (!data.success) return;
+        const job = data.data;
+        setJobProgress(job.progress ?? 0);
+        setJobProgressMsg(job.progress_msg ?? '');
+        if (job.status === 'complete' && job.result) {
+          setJobRunning(false);
+          const r = job.result;
+          setWinner(r.winner ?? null);
+          setRunnerUp(r.runnerUp ?? null);
+          setVotes(r.votes ?? null);
+          setAgentNames(r.agentNames ?? {});
+          setTranslatedContent(r.translatedContent ?? null);
+          setVoteStatus('done');
+        } else if (job.status === 'failed') {
+          setJobRunning(false);
+          setJobError(job.error ?? 'Jobbet misslyckades');
+        }
+      } catch { /* silent */ }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [jobId, jobRunning]);
 
   // Build CouncilInput from form
   const buildInput = useCallback(() => ({
@@ -464,6 +500,11 @@ export default function AIToolsPage() {
     setFeedbackStatus('idle');
     setIterateStatus('idle');
     setVoteStatus('idle');
+    setJobId(null);
+    setJobRunning(false);
+    setJobProgress(0);
+    setJobProgressMsg('');
+    setJobError(null);
     setProductImage(null);
     setSaveStatus(null);
     setStepErrors({});
@@ -472,86 +513,24 @@ export default function AIToolsPage() {
 
   // ── Step handlers ────────────────────────────────────────────────────────
 
-  const handleGenerate = async () => {
+  const handleStartCouncil = async () => {
     resetCouncil();
-    setGenerateStatus('running');
-    const t0 = Date.now();
+    setJobError(null);
+    setJobRunning(true);
+    setJobProgress(0);
+    setJobProgressMsg('Startar...');
     try {
-      const res = await fetch('/api/ai/council/generate', {
+      const res = await fetch('/api/ai/council', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildInput()),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Generation failed');
-      setProposals(data.data.proposals);
-      setAgentNames(data.data.agentNames);
-      setCouncilRunId(data.data.councilRunId);
-      setGenerateStatus('done');
-      setGenerationTimeMs(Date.now() - t0);
+      if (!res.ok || !data.success) throw new Error(data.error || 'Kunde inte starta council');
+      setJobId(data.data.id);
     } catch (err) {
-      setGenerateStatus('error');
-      setStepErrors(e => ({ ...e, generate: err instanceof Error ? err.message : String(err) }));
-    }
-  };
-
-  const handleFeedback = async () => {
-    if (!proposals) return;
-    setFeedbackStatus('running');
-    try {
-      const res = await fetch('/api/ai/council/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: buildInput(), proposals }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Feedback failed');
-      setFeedback(data.data.feedback);
-      setFeedbackStatus('done');
-    } catch (err) {
-      setFeedbackStatus('error');
-      setStepErrors(e => ({ ...e, feedback: err instanceof Error ? err.message : String(err) }));
-    }
-  };
-
-  const handleIterate = async () => {
-    if (!proposals || !feedback) return;
-    setIterateStatus('running');
-    try {
-      const res = await fetch('/api/ai/council/iterate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: buildInput(), proposals, feedback }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Iteration failed');
-      setIteratedProposals(data.data.iteratedProposals);
-      setIterateStatus('done');
-    } catch (err) {
-      setIterateStatus('error');
-      setStepErrors(e => ({ ...e, iterate: err instanceof Error ? err.message : String(err) }));
-    }
-  };
-
-  const handleVote = async () => {
-    if (!iteratedProposals || !councilRunId) return;
-    setVoteStatus('running');
-    try {
-      const res = await fetch('/api/ai/council/vote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: buildInput(), iteratedProposals, agentNames, councilRunId }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Voting failed');
-      setVotes(data.data.votes);
-      setWinner(data.data.winner);
-      setRunnerUp(data.data.runnerUp);
-      setTranslatedContent(data.data.translatedContent ?? null);
-      setVoteStatus('done');
-    } catch (err) {
-      setVoteStatus('error');
-      setStepErrors(e => ({ ...e, vote: err instanceof Error ? err.message : String(err) }));
+      setJobRunning(false);
+      setJobError(err instanceof Error ? err.message : 'Kunde inte starta');
     }
   };
 
@@ -904,214 +883,122 @@ export default function AIToolsPage() {
         {/* ── Right: Workspace ─────────────────────────────────────────── */}
         <div className="space-y-5">
 
-          {/* ── Council steps ──────────────────────────────────────────── */}
+          {/* ── Council ──────────────────────────────────────────────────── */}
           {isCouncilMode && (
             <>
-              {/* Step 1: Generate */}
+              {/* Starta + progress */}
               <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white ${generateStatus === 'done' ? 'bg-green-500' : 'bg-indigo-600'}`}>
-                      {generateStatus === 'done' ? <CheckCircle className="h-4 w-4" /> : '1'}
+                <CardContent className="space-y-4 pt-5">
+                  {/* Starta-knapp */}
+                  <button
+                    onClick={handleStartCouncil}
+                    disabled={jobRunning || !theme}
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all
+                      ${jobRunning
+                        ? 'cursor-wait bg-indigo-50 text-indigo-700 ring-1 ring-indigo-300'
+                        : !theme
+                          ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                          : 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 active:scale-[0.98]'}`}
+                  >
+                    {jobRunning
+                      ? <><RefreshCw className="h-4 w-4 animate-spin" />Kör council...</>
+                      : <><Play className="h-4 w-4" />Starta council</>}
+                  </button>
+
+                  {/* Progress bar */}
+                  {(jobRunning || jobProgress > 0) && (
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
+                        <span>{jobProgressMsg || 'Arbetar...'}</span>
+                        <span>{jobProgress}%</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div
+                          className="h-2 rounded-full bg-indigo-600 transition-all duration-700"
+                          style={{ width: `${jobProgress}%` }}
+                        />
+                      </div>
                     </div>
-                    <CardTitle className="text-base">Generera förslag</CardTitle>
-                    <div className="ml-auto">
-                      <StepButton
-                        step={1}
-                        label="Starta"
-                        icon={<Play className="h-4 w-4" />}
-                        status={generateStatus}
-                        disabled={!theme}
-                        onClick={handleGenerate}
-                      />
-                    </div>
-                  </div>
-                </CardHeader>
-                {(agentCards.length > 0 || proposals) && (
-                  <CardContent>
-                    {stepErrors.generate && (
-                      <p className="mb-3 rounded-lg bg-red-50 p-2 text-xs text-red-600">{stepErrors.generate}</p>
-                    )}
+                  )}
+
+                  {/* Felmeddelande */}
+                  {jobError && (
+                    <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{jobError}</p>
+                  )}
+
+                  {/* Agentkortar */}
+                  {agentCards.length > 0 && (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       {agentCards.map((agent) => (
                         <AgentCardUI
                           key={agent.id}
                           agent={agent}
-                          proposal={getAgentProposal(agent.provider)}
-                          iteratedProposal={getAgentIterated(agent.provider)}
-                          feedbackReceived={feedbackStatus === 'done' ? getAgentFeedback(agent.provider) : []}
-                          vote={getAgentVote(agent.provider)}
                           winner={winner ?? undefined}
                           runnerUp={runnerUp ?? undefined}
+                          vote={getAgentVote(agent.provider)}
                           stepStatus={stepStatuses}
                         />
                       ))}
                     </div>
-                  </CardContent>
-                )}
+                  )}
+                </CardContent>
               </Card>
 
-              {/* Step 2: Feedback */}
-              {generateStatus === 'done' && (
+              {/* Resultat: vinnare + röster */}
+              {councilDone && winner && votes && (
                 <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white ${feedbackStatus === 'done' ? 'bg-green-500' : 'bg-indigo-600'}`}>
-                        {feedbackStatus === 'done' ? <CheckCircle className="h-4 w-4" /> : '2'}
-                      </div>
-                      <CardTitle className="text-base">Peer feedback</CardTitle>
-                      <div className="ml-auto">
-                        <StepButton
-                          step={2}
-                          label="Ge feedback"
-                          icon={<MessageSquare className="h-4 w-4" />}
-                          status={feedbackStatus}
-                          disabled={!proposals}
-                          onClick={handleFeedback}
-                        />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  {feedbackStatus === 'done' && feedback && (
-                    <CardContent>
-                      {stepErrors.feedback && (
-                        <p className="mb-3 rounded-lg bg-red-50 p-2 text-xs text-red-600">{stepErrors.feedback}</p>
-                      )}
-                      <FeedbackMatrix feedback={feedback} agents={agentCards} agentNames={agentNames} />
-                    </CardContent>
-                  )}
-                </Card>
-              )}
-
-              {/* Step 3: Iterate */}
-              {feedbackStatus === 'done' && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white ${iterateStatus === 'done' ? 'bg-green-500' : 'bg-indigo-600'}`}>
-                        {iterateStatus === 'done' ? <CheckCircle className="h-4 w-4" /> : '3'}
-                      </div>
-                      <CardTitle className="text-base">Revidera förslag</CardTitle>
-                      <div className="ml-auto">
-                        <StepButton
-                          step={3}
-                          label="Revidera"
-                          icon={<RefreshCw className="h-4 w-4" />}
-                          status={iterateStatus}
-                          disabled={!feedback}
-                          onClick={handleIterate}
-                        />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  {iterateStatus === 'done' && iteratedProposals && (
-                    <CardContent>
-                      {stepErrors.iterate && (
-                        <p className="mb-3 rounded-lg bg-red-50 p-2 text-xs text-red-600">{stepErrors.iterate}</p>
-                      )}
-                      <div className="space-y-2">
-                        {iteratedProposals.map((ip) => {
-                          const agent = agentCards.find(a => a.provider === ip.provider);
-                          return (
-                            <div key={ip.provider} className={`flex items-start gap-3 rounded-xl border p-3 ${PROVIDER_BG[ip.provider]}`}>
-                              {agent && <AgentAvatar agent={agent} size="sm" />}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-gray-700 truncate">
-                                  {ip.content?.title || ip.content?.tema || agentNames[ip.provider] || ip.provider}
-                                  <Badge className="ml-2 text-[10px]">v{ip.version}</Badge>
-                                </p>
-                                {ip.changesApplied.slice(0, 2).map((c, i) => (
-                                  <p key={i} className="mt-0.5 text-[10px] text-gray-500 truncate">• {c}</p>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-              )}
-
-              {/* Step 4: Vote */}
-              {iterateStatus === 'done' && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white ${voteStatus === 'done' ? 'bg-green-500' : 'bg-indigo-600'}`}>
-                        {voteStatus === 'done' ? <CheckCircle className="h-4 w-4" /> : '4'}
-                      </div>
-                      <CardTitle className="text-base">Röstning</CardTitle>
-                      <div className="ml-auto">
-                        <StepButton
-                          step={4}
-                          label="Rösta"
-                          icon={<Zap className="h-4 w-4" />}
-                          status={voteStatus}
-                          disabled={!iteratedProposals}
-                          onClick={handleVote}
-                        />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  {voteStatus === 'done' && votes && winner && (
-                    <CardContent>
-                      {stepErrors.vote && (
-                        <p className="mb-3 rounded-lg bg-red-50 p-2 text-xs text-red-600">{stepErrors.vote}</p>
-                      )}
-
-                      {/* Winner banner */}
-                      <div className="mb-4 rounded-2xl bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 p-4">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <Trophy className="h-7 w-7 shrink-0 text-yellow-500" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium text-yellow-700 uppercase tracking-wide">Vinnare</p>
-                            <p className="truncate text-lg font-bold text-gray-900">{agentNames[winner.provider] || winner.provider}</p>
+                  <CardContent className="pt-5">
+                    {/* Winner banner */}
+                    <div className="mb-4 rounded-2xl bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 p-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Trophy className="h-7 w-7 shrink-0 text-yellow-500" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-yellow-700 uppercase tracking-wide">Vinnare</p>
+                          <p className="truncate text-lg font-bold text-gray-900">{agentNames[winner.provider] || winner.provider}</p>
+                        </div>
+                        {runnerUp && (
+                          <div className="shrink-0 text-right">
+                            <p className="text-xs text-gray-400">Tvåa</p>
+                            <p className="text-sm font-semibold text-gray-600 flex items-center gap-1">
+                              <Medal className="h-4 w-4 text-slate-400" />
+                              {agentNames[runnerUp.provider] || runnerUp.provider}
+                            </p>
                           </div>
-                          {runnerUp && (
-                            <div className="shrink-0 text-right">
-                              <p className="text-xs text-gray-400">Tvåa</p>
-                              <p className="text-sm font-semibold text-gray-600 flex items-center gap-1">
-                                <Medal className="h-4 w-4 text-slate-400" />
-                                {agentNames[runnerUp.provider] || runnerUp.provider}
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Votes */}
+                    <div className="space-y-2">
+                      {votes.map((vote, i) => {
+                        const voterAgent = agentCards.find(a => a.provider === vote.voter);
+                        const votedAgent = agentCards.find(a => a.provider === vote.votedFor);
+                        return (
+                          <div key={i} className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-xs">
+                            <div className="mb-1.5 flex items-center gap-2">
+                              <div className="flex shrink-0 items-center gap-1">
+                                {voterAgent && <AgentAvatar agent={voterAgent} size="sm" />}
+                                <ArrowRight className="h-3 w-3 text-gray-400" />
+                                {votedAgent && <AgentAvatar agent={votedAgent} size="sm" />}
+                              </div>
+                              <p className="min-w-0 truncate font-medium text-gray-700">
+                                {agentNames[vote.voter] || vote.voter} röstade på {agentNames[vote.votedFor] || vote.votedFor}
                               </p>
                             </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Votes */}
-                      <div className="space-y-2">
-                        {votes.map((vote, i) => {
-                          const voterAgent = agentCards.find(a => a.provider === vote.voter);
-                          const votedAgent = agentCards.find(a => a.provider === vote.votedFor);
-                          return (
-                            <div key={i} className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-xs">
-                              <div className="mb-1.5 flex items-center gap-2">
-                                <div className="flex shrink-0 items-center gap-1">
-                                  {voterAgent && <AgentAvatar agent={voterAgent} size="sm" />}
-                                  <ArrowRight className="h-3 w-3 text-gray-400" />
-                                  {votedAgent && <AgentAvatar agent={votedAgent} size="sm" />}
-                                </div>
-                                <p className="min-w-0 truncate font-medium text-gray-700">
-                                  {agentNames[vote.voter] || vote.voter} röstade på {agentNames[vote.votedFor] || vote.votedFor}
-                                </p>
-                              </div>
-                              <p className="mb-1.5 text-gray-500 line-clamp-2">{vote.reasoning}</p>
-                              <div className="flex flex-wrap gap-1">
-                                {Object.entries(vote.scores).map(([k, v]) => (
-                                  <span key={k} className={`rounded px-1.5 py-0.5 text-[9px] font-medium
-                                    ${v >= 8 ? 'bg-green-100 text-green-700' : v >= 6 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                                    {k === 'overall' ? '⭐' : k === 'creativity' ? '🎨' : k === 'ageAppropriateness' ? '👶' : k === 'engagement' ? '🔥' : '📖'} {v}
-                                  </span>
-                                ))}
-                              </div>
+                            <p className="mb-1.5 text-gray-500 line-clamp-2">{vote.reasoning}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {Object.entries(vote.scores).map(([k, v]) => (
+                                <span key={k} className={`rounded px-1.5 py-0.5 text-[9px] font-medium
+                                  ${v >= 8 ? 'bg-green-100 text-green-700' : v >= 6 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                                  {k === 'overall' ? '⭐' : k === 'creativity' ? '🎨' : k === 'ageAppropriateness' ? '👶' : k === 'engagement' ? '🔥' : '📖'} {v}
+                                </span>
+                              ))}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
                 </Card>
               )}
 
