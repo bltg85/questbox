@@ -54,23 +54,9 @@ function msgForStep(step: CouncilStep): string {
   return map[step];
 }
 
-// ─── Self-chain: trigga nästa steg direkt (fire and forget) ──────────────────
-
-function triggerNextStep(): void {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  const secret = process.env.CRON_SECRET ?? '';
-
-  fetch(`${appUrl}/api/cron/process-jobs`, {
-    method: 'GET',
-    headers: { authorization: `Bearer ${secret}` },
-  }).catch((err) => {
-    console.warn('[JobRunner] Self-chain trigger failed (non-fatal):', err?.message);
-  });
-}
-
 // ─── Huvud-runner ────────────────────────────────────────────────────────────
 
-export async function processNextJob(): Promise<{ processed: boolean; jobId?: string; step?: string; error?: string }> {
+export async function processNextJob(): Promise<{ processed: boolean; jobId?: string; step?: string; done?: boolean; error?: string }> {
   const supabase = await createClient();
 
   // Hämta äldsta pending-jobb (1 åt gången)
@@ -178,12 +164,7 @@ export async function processNextJob(): Promise<{ processed: boolean; jobId?: st
       })
       .eq('id', job.id);
 
-    // ── Self-chain: trigga nästa steg direkt (om inte klart) ──
-    if (!isComplete) {
-      triggerNextStep();
-    }
-
-    return { processed: true, jobId: job.id, step };
+    return { processed: true, jobId: job.id, step, done: isComplete };
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
