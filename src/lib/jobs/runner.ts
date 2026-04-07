@@ -11,7 +11,7 @@
  * Varje steg tar < 40s (parallella LLM-anrop), klart inom Vercel Hobby 60s-limit.
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import {
   stepGenerate,
   stepFeedback,
@@ -57,7 +57,7 @@ function msgForStep(step: CouncilStep): string {
 // ─── Huvud-runner ────────────────────────────────────────────────────────────
 
 export async function processNextJob(jobId?: string): Promise<{ processed: boolean; jobId?: string; step?: string; done?: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   // Om jobId anges: hämta det specifika jobbet. Annars: äldsta pending-jobbet.
   let query = supabase.from('jobs').select('*').eq('status', 'pending');
