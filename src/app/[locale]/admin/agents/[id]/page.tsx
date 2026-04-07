@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server';
-import type { Agent } from '@/types';
-import { ArrowLeft, Trophy, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import type { Agent, AgentXpEvent } from '@/types';
+import { ArrowLeft, Trophy, TrendingUp, TrendingDown, Minus, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -44,7 +44,7 @@ export default async function AgentDetailPage({
   const { id, locale } = await params;
   const supabase = await createServiceClient();
 
-  const [{ data: agentRaw }, { data: logRaw }] = await Promise.all([
+  const [{ data: agentRaw }, { data: logRaw }, { data: xpRaw }] = await Promise.all([
     supabase.from('agents').select('*').eq('id', id).single(),
     supabase
       .from('agent_feedback_log')
@@ -52,12 +52,19 @@ export default async function AgentDetailPage({
       .eq('agent_id', id)
       .order('created_at', { ascending: false })
       .limit(50),
+    supabase
+      .from('agent_xp_events')
+      .select('*')
+      .eq('agent_id', id)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ]);
 
   if (!agentRaw) notFound();
 
   const agent = agentRaw as Agent;
   const log = (logRaw || []) as FeedbackLogEntry[];
+  const xpEvents = (xpRaw || []) as AgentXpEvent[];
 
   // Aggregate strengths & improvements from all feedback
   const allStrengths: string[] = [];
@@ -90,11 +97,18 @@ export default async function AgentDetailPage({
               <span className="capitalize">{agent.tier}</span>
             </p>
           </div>
-          <div className="ml-auto text-right">
+          <div className="ml-auto text-right space-y-1">
             <p className={`text-3xl font-bold ${eloColor(agent.elo)}`}>{agent.elo} ELO</p>
             <p className="text-sm text-gray-500">
               {agent.wins}W · {agent.losses}L · {log.length} körningar
             </p>
+            <div className="flex items-center justify-end gap-1.5 mt-1">
+              <Zap className="h-4 w-4 text-amber-500" />
+              <span className="inline-flex items-center rounded-full bg-indigo-600 px-2.5 py-0.5 text-xs font-bold text-white">
+                Lv {agent.level ?? 1}
+              </span>
+              <span className="text-sm text-gray-500">{agent.xp ?? 0} XP</span>
+            </div>
           </div>
         </div>
       </div>
@@ -140,6 +154,42 @@ export default async function AgentDetailPage({
           <h2 className="mb-2 font-semibold text-gray-700">System Prompt</h2>
           <pre className="whitespace-pre-wrap text-sm text-gray-600 font-mono">{agent.system_prompt}</pre>
         </div>
+      )}
+
+      {/* XP history */}
+      {xpEvents.length > 0 && (
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-800">
+            <Zap className="h-5 w-5 text-amber-500" /> XP-historik
+          </h2>
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                <tr>
+                  <th className="px-4 py-2 text-left">Anledning</th>
+                  <th className="px-4 py-2 text-left">XP</th>
+                  <th className="px-4 py-2 text-left">Datum</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {xpEvents.map((ev) => (
+                  <tr key={ev.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-gray-700">
+                      {ev.reason === 'council_winner' && '🏆 Vinnare'}
+                      {ev.reason === 'council_runner_up' && '🥈 Tvåa'}
+                      {ev.reason === 'council_participant' && '🎯 Deltagare'}
+                      {!['council_winner', 'council_runner_up', 'council_participant'].includes(ev.reason) && ev.reason}
+                    </td>
+                    <td className="px-4 py-2 font-semibold text-amber-600">+{ev.xp_awarded}</td>
+                    <td className="px-4 py-2 text-gray-400">
+                      {new Date(ev.created_at).toLocaleString('sv-SE')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
       {/* Feedback history */}

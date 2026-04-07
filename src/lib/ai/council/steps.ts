@@ -19,6 +19,8 @@ import {
   applyEloUpdates,
   logAgentFeedback,
   appendReflectionNotes,
+  awardXP,
+  type XpReason,
 } from './agents';
 import type {
   CouncilInput,
@@ -404,10 +406,23 @@ export async function stepVote(
       })
     );
 
+    // XP-tilldelning: vinnare +30, tvåa +20, resten +10
+    const xpUpdates = perAgent.map(({ proposal, agent }) => {
+      const isWinner = proposal.provider === winner.provider;
+      const isRunnerUp = runnerUp && proposal.provider === runnerUp.provider;
+      const reason = isWinner
+        ? 'council_winner'
+        : isRunnerUp
+          ? 'council_runner_up'
+          : 'council_participant';
+      return awardXP(agent!.id, reason as XpReason, councilRunId);
+    });
+
     Promise.allSettled([
       applyEloUpdates(eloUpdates),
       logAgentFeedback(feedbackEntries),
       ...reflectionUpdates,
+      ...xpUpdates,
     ]).catch((err) => console.error('[Council/vote] ELO/log error:', err));
   }
 
