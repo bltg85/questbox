@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { waitUntil } from '@vercel/functions';
 import { createClient } from '@/lib/supabase/server';
+import { processNextJob } from '@/lib/jobs/runner';
 
 const CouncilRequestSchema = z.object({
   type: z.enum(['treasure_hunt', 'quiz', 'diploma', 'party_game', 'escape_game']),
@@ -21,6 +22,7 @@ const CouncilRequestSchema = z.object({
   stegTyper: z.array(z.string()).optional(),
 });
 
+// Triggar process-jobs via HTTP för att starta nästa steg i en ny function-invocation
 function triggerProcessJobs(): Promise<void> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
   const secret = process.env.CRON_SECRET ?? '';
@@ -30,7 +32,7 @@ function triggerProcessJobs(): Promise<void> {
   }).then(() => {}).catch(() => {});
 }
 
-// POST /api/ai/council — lägg till ett council-jobb i kön och returnera job_id direkt
+// POST /api/ai/council — lägg till ett council-jobb och starta steg 1 direkt
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -55,8 +57,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // Kicka igång första steget — waitUntil håller funktionen vid liv tills fetch är klar
-    waitUntil(triggerProcessJobs());
+    // Kör steg 1 direkt (ingen HTTP → ingen race condition med Supabase-inserten).
+    // waitUntil håller funktionen vid liv under körningen (~35s).
+    // När steg 1 är klart triggas steg 2 via HTTP i en ny function-invocation.
+    waitUntil(
+      processNextJob().then((result) => {
+        if (result.processed && !result.done && !result.error) {
+          return triggerProcessJobs();
+        }
+      })
+    );
 
     return NextResponse.json({ success: true, data: job }, { status: 201 });
   } catch (err) {
