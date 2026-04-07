@@ -4,29 +4,30 @@ import { processNextJob } from '@/lib/jobs/runner';
 
 export const maxDuration = 55;
 
-function triggerProcessJobs(): Promise<void> {
+function triggerProcessJobs(jobId: string): Promise<void> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
   const secret = process.env.CRON_SECRET ?? '';
-  return fetch(`${appUrl}/api/cron/process-jobs`, {
+  return fetch(`${appUrl}/api/cron/process-jobs?jobId=${jobId}`, {
     method: 'GET',
     headers: { authorization: `Bearer ${secret}` },
   }).then(() => {}).catch(() => {});
 }
 
-// GET /api/cron/process-jobs — anropas av Vercel Cron eller self-chain
+// GET /api/cron/process-jobs?jobId=xxx — kör nästa steg för ett specifikt jobb
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  try {
-    const result = await processNextJob();
+  const jobId = request.nextUrl.searchParams.get('jobId') ?? undefined;
 
-    // Self-chain: om ett steg kördes och jobbet INTE är klart, trigga nästa steg.
-    // waitUntil håller Vercel-funktionen vid liv tills fetch-anropet har skickats.
-    if (result.processed && !result.error && !result.done) {
-      waitUntil(triggerProcessJobs());
+  try {
+    const result = await processNextJob(jobId);
+
+    // Self-chain: trigga nästa steg med samma jobId
+    if (result.processed && !result.error && !result.done && result.jobId) {
+      waitUntil(triggerProcessJobs(result.jobId));
     }
 
     return NextResponse.json(result);
