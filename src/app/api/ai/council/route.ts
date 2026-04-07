@@ -22,11 +22,11 @@ const CouncilRequestSchema = z.object({
   stegTyper: z.array(z.string()).optional(),
 });
 
-// Triggar process-jobs via HTTP för att starta nästa steg i en ny function-invocation
-function triggerProcessJobs(): Promise<void> {
+// Triggar process-jobs med ett specifikt jobb-ID
+function triggerProcessJobs(jobId: string): Promise<void> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
   const secret = process.env.CRON_SECRET ?? '';
-  return fetch(`${appUrl}/api/cron/process-jobs`, {
+  return fetch(`${appUrl}/api/cron/process-jobs?jobId=${jobId}`, {
     method: 'GET',
     headers: { authorization: `Bearer ${secret}` },
   }).then(() => {}).catch(() => {});
@@ -57,13 +57,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // Kör steg 1 direkt (ingen HTTP → ingen race condition med Supabase-inserten).
+    const jobId = job.id;
+
+    // Kör steg 1 direkt med detta jobb-ID (ingen race condition).
     // waitUntil håller funktionen vid liv under körningen (~35s).
-    // När steg 1 är klart triggas steg 2 via HTTP i en ny function-invocation.
+    // Steg 2+ triggas via HTTP med jobId i URL.
     waitUntil(
-      processNextJob().then((result) => {
+      processNextJob(jobId).then((result) => {
         if (result.processed && !result.done && !result.error) {
-          return triggerProcessJobs();
+          return triggerProcessJobs(jobId);
         }
       })
     );

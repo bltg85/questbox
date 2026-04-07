@@ -56,17 +56,17 @@ function msgForStep(step: CouncilStep): string {
 
 // ─── Huvud-runner ────────────────────────────────────────────────────────────
 
-export async function processNextJob(): Promise<{ processed: boolean; jobId?: string; step?: string; done?: boolean; error?: string }> {
+export async function processNextJob(jobId?: string): Promise<{ processed: boolean; jobId?: string; step?: string; done?: boolean; error?: string }> {
   const supabase = await createClient();
 
-  // Hämta äldsta pending-jobb (1 åt gången)
-  const { data: job, error: fetchErr } = await supabase
-    .from('jobs')
-    .select('*')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // Om jobId anges: hämta det specifika jobbet. Annars: äldsta pending-jobbet.
+  let query = supabase.from('jobs').select('*').eq('status', 'pending');
+  if (jobId) {
+    query = query.eq('id', jobId);
+  } else {
+    query = query.order('created_at', { ascending: true });
+  }
+  const { data: job, error: fetchErr } = await query.limit(1).maybeSingle();
 
   if (fetchErr) {
     console.error('[JobRunner] Fetch error:', fetchErr);
