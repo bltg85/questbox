@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import type { Agent } from '@/types';
-import { Trophy, Swords, TrendingUp, Activity } from 'lucide-react';
+import { Trophy, Swords, TrendingUp, Activity, Zap } from 'lucide-react';
 import Link from 'next/link';
 import AgentEditPanel from './agent-edit-panel';
 
@@ -19,6 +19,21 @@ function eloColor(elo: number): string {
 function eloBar(elo: number): number {
   // 1400 → 0%, 1800 → 100%
   return Math.max(0, Math.min(100, ((elo - 1400) / 400) * 100));
+}
+
+function xpToNextLevel(xp: number): { current: number; needed: number; pct: number } {
+  const level = Math.floor(xp / 100) + 1;
+  const levelStartXp = (level - 1) * 100;
+  const current = xp - levelStartXp;
+  const needed = 100;
+  const pct = Math.round((current / needed) * 100);
+  return { current, needed, pct };
+}
+
+function levelColor(level: number): string {
+  if (level >= 5) return 'bg-yellow-500';
+  if (level >= 3) return 'bg-purple-500';
+  return 'bg-indigo-500';
 }
 
 const TIER_LABELS: Record<string, string> = {
@@ -162,23 +177,52 @@ export default async function AgentsPage({
                       </div>
                     </Link>
 
-                    {/* ELO bar */}
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-lg font-bold ${eloColor(agent.elo)}`}>
-                          {agent.elo} ELO
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {agent.wins}W · {agent.losses}L · {winRate(agent)}% win rate
-                        </span>
+                    {/* ELO + XP */}
+                    <div className="flex-1 space-y-2">
+                      {/* ELO */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-lg font-bold ${eloColor(agent.elo)}`}>
+                            {agent.elo} ELO
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {agent.wins}W · {agent.losses}L · {winRate(agent)}% win rate
+                          </span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-gray-200">
+                          <div
+                            className="h-2 rounded-full bg-indigo-500 transition-all"
+                            style={{ width: `${eloBar(agent.elo)}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-gray-400">{agent.total_rounds} rundor totalt</p>
                       </div>
-                      <div className="h-2 w-full rounded-full bg-gray-200">
-                        <div
-                          className="h-2 rounded-full bg-indigo-500 transition-all"
-                          style={{ width: `${eloBar(agent.elo)}%` }}
-                        />
-                      </div>
-                      <p className="mt-1 text-xs text-gray-400">{agent.total_rounds} rundor totalt</p>
+                      {/* XP */}
+                      {(() => {
+                        const xp = agent.xp ?? 0;
+                        const level = agent.level ?? 1;
+                        const prog = xpToNextLevel(xp);
+                        return (
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="flex items-center gap-1 text-sm font-semibold text-gray-700">
+                                <Zap className="h-3.5 w-3.5 text-amber-500" />
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold text-white ${levelColor(level)}`}>
+                                  Lv {level}
+                                </span>
+                                <span className="text-xs text-gray-500 font-normal">{xp} XP totalt</span>
+                              </span>
+                              <span className="text-xs text-gray-400">{prog.current}/{prog.needed} till nästa</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-gray-200">
+                              <div
+                                className={`h-1.5 rounded-full transition-all ${levelColor(level)}`}
+                                style={{ width: `${prog.pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Edit panel */}

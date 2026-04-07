@@ -1,6 +1,86 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import type { Agent, AIProvider } from '@/types';
 
+// ============== XP ==============
+
+export type XpReason = 'council_winner' | 'council_runner_up' | 'council_participant';
+
+const XP_BY_REASON: Record<XpReason, number> = {
+  council_winner:      30,
+  council_runner_up:   20,
+  council_participant: 10,
+};
+
+function computeLevel(xp: number): number {
+  return Math.floor(xp / 100) + 1;
+}
+
+const LEVEL_UP_SUFFIX_MARKER = '\n\n---\n## Agent Level';
+
+function buildLevelUpPromptSuffix(level: number): string {
+  return `${LEVEL_UP_SUFFIX_MARKER}\nDu är nu Level ${level}. Du har samlat erfarenhet och förväntas leverera ännu skarpare, mer välstrukturerat innehåll. Håll nivån hög.`;
+}
+
+export async function awardXP(
+  agentId: string,
+  reason: XpReason,
+  jobId?: string,
+): Promise<{ newXp: number; newLevel: number; leveledUp: boolean }> {
+  const supabase = await createServiceClient();
+
+  // Hämta nuvarande xp + level + system_prompt
+  const { data: agentRaw, error } = await supabase
+    .from('agents')
+    .select('xp, level, system_prompt')
+    .eq('id', agentId)
+    .single();
+
+  if (error || !agentRaw) {
+    console.error('[XP] Failed to fetch agent for XP award:', error);
+    return { newXp: 0, newLevel: 1, leveledUp: false };
+  }
+
+  const xpAwarded = XP_BY_REASON[reason];
+  const newXp = (agentRaw.xp ?? 0) + xpAwarded;
+  const oldLevel = agentRaw.level ?? 1;
+  const newLevel = computeLevel(newXp);
+  const leveledUp = newLevel > oldLevel;
+
+  // Bygg uppdaterat system_prompt vid level-up
+  let updatedSystemPrompt = agentRaw.system_prompt ?? '';
+  if (leveledUp) {
+    // Ta bort eventuell gammal level-sektion och ersätt
+    const markerIdx = updatedSystemPrompt.indexOf(LEVEL_UP_SUFFIX_MARKER);
+    if (markerIdx !== -1) {
+      updatedSystemPrompt = updatedSystemPrompt.slice(0, markerIdx);
+    }
+    updatedSystemPrompt += buildLevelUpPromptSuffix(newLevel);
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    xp: newXp,
+    level: newLevel,
+    updated_at: new Date().toISOString(),
+  };
+  if (leveledUp) updatePayload.system_prompt = updatedSystemPrompt;
+
+  await Promise.allSettled([
+    supabase.from('agents').update(updatePayload).eq('id', agentId),
+    supabase.from('agent_xp_events').insert({
+      agent_id: agentId,
+      job_id: jobId ?? null,
+      xp_awarded: xpAwarded,
+      reason,
+    }),
+  ]);
+
+  if (leveledUp) {
+    console.log(`[XP] 🎉 ${agentId} leveled up to Level ${newLevel}! (${newXp} XP)`);
+  }
+
+  return { newXp, newLevel, leveledUp };
+}
+
 export type { Agent };
 
 export async function getAgentsByTier(tier: 'economy' | 'premium'): Promise<Agent[]> {

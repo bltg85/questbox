@@ -145,8 +145,19 @@ export interface Agent {
   wins: number;
   losses: number;
   total_rounds: number;
+  xp: number;
+  level: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface AgentXpEvent {
+  id: string;
+  agent_id: string;
+  job_id: string | null;
+  xp_awarded: number;
+  reason: string;
+  created_at: string;
 }
 
 export interface AIGeneratorInput {
