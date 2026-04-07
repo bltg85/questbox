@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { waitUntil } from '@vercel/functions';
 import { createClient } from '@/lib/supabase/server';
 
 const CouncilRequestSchema = z.object({
@@ -19,6 +20,15 @@ const CouncilRequestSchema = z.object({
   mallNamn: z.string().optional(),
   stegTyper: z.array(z.string()).optional(),
 });
+
+function triggerProcessJobs(): Promise<void> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const secret = process.env.CRON_SECRET ?? '';
+  return fetch(`${appUrl}/api/cron/process-jobs`, {
+    method: 'GET',
+    headers: { authorization: `Bearer ${secret}` },
+  }).then(() => {}).catch(() => {});
+}
 
 // POST /api/ai/council — lägg till ett council-jobb i kön och returnera job_id direkt
 export async function POST(request: NextRequest) {
@@ -44,6 +54,9 @@ export async function POST(request: NextRequest) {
       console.error('[Council API] Insert error:', error);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+
+    // Kicka igång första steget — waitUntil håller funktionen vid liv tills fetch är klar
+    waitUntil(triggerProcessJobs());
 
     return NextResponse.json({ success: true, data: job }, { status: 201 });
   } catch (err) {
